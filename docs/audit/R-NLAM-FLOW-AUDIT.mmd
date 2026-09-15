@@ -1,0 +1,300 @@
+%% R-NLAM Audited Complete Website & System Flow Diagram
+%% Post Mock-to-Live Integration Execution
+%% Date: 2026-09-15
+
+flowchart TD
+    classDef verified fill:#d1fae5,stroke:#16a34a,stroke-width:3px;
+    classDef partial fill:#fef3c7,stroke:#d97706,stroke-width:3px;
+    classDef mocked fill:#ffedd5,stroke:#ea580c,stroke-width:3px;
+    classDef broken fill:#fee2e2,stroke:#dc2626,stroke-width:3px;
+    classDef blocked fill:#e5e7eb,stroke:#6b7280,stroke-width:3px;
+
+    %% Legend
+    subgraph Legend ["Flow Audit Status Legend"]
+        L_GREEN["🟢 LIVE / VERIFIED"] ::: verified
+        L_YELLOW["🟡 PARTIAL / SIMULATED"] ::: partial
+        L_ORANGE["🟠 MOCKED / HARDCODED"] ::: mocked
+        L_RED["🔴 BROKEN / MISSING"] ::: broken
+        L_GREY["⚪ BLOCKED"] ::: blocked
+    end
+
+    %% Entry & Authentication
+    START(["Start Application"]) ::: verified
+    LANDING["Landing Page (http://localhost:3000)"] ::: verified
+    LOGIN_PAGE["Login Page (/login)"] ::: mocked
+    AUTH_KEYCLOAK["Dev Header Auth (X-User-Role)"] ::: mocked
+    ROLE_DET["Determine User Role & Switcher"] ::: verified
+
+    START --> LANDING
+    LANDING --> LOGIN_PAGE
+    LOGIN_PAGE --> AUTH_KEYCLOAK
+    AUTH_KEYCLOAK --> ROLE_DET
+
+    %% Role Branches
+    ROLE_DET --> CENTRAL_ROLE["Central Admin / Officer"]
+    ROLE_DET --> STATE_ROLE["State Officer"]
+    ROLE_DET --> DISTRICT_ROLE["District / CALA Officer"]
+    ROLE_DET --> PIA_ROLE["PIA Officer"]
+    ROLE_DET --> FIELD_ROLE["Field Officer"]
+    ROLE_DET --> RR_ROLE["R&R Officer"]
+    ROLE_DET --> FINANCE_ROLE["Finance Officer"]
+    ROLE_DET --> GIS_ROLE["GIS Officer"]
+    ROLE_DET --> CITIZEN_ROLE["Citizen / Landowner"]
+
+    %% Central Role Nodes
+    subgraph Central_Module ["Central Administrator Module"]
+        CENTRAL_DASH["Central Overview (/central/overview)"] ::: verified
+        NAT_KPI["National KPIs API (GET /api/analytics/kpis)"] ::: verified
+        NAT_PROJ["All Projects List (/central/projects)"] ::: verified
+        STATE_PERF["State Performance Matrix (/central/states)"] ::: verified
+        DIST_PERF["District Performance View (/central/districts)"] ::: verified
+        NAT_LAND["National Land Status (/central/land)"] ::: verified
+        NAT_COMP["National Compensation Summary"] ::: verified
+        NAT_RR["National R&R Summary"] ::: verified
+        NAT_POSS["National Possession Summary"] ::: verified
+        NAT_RISK["National Delay Risk (/central/risk)"] ::: verified
+        POLICY_ANALYTICS["Policy Analytics Engine (/central/analytics)"] ::: verified
+        MIS_REPORTS["MIS Reports Engine"] ::: verified
+        AUDIT_GOV["Audit & Governance (/central/audit)"] ::: verified
+        HASH_VERIFY["SHA-256 Chain Verification"] ::: verified
+        WORKFLOW_CFG["Workflow Configurator (/central/workflows)"] ::: verified
+        USER_MGMT["User & Org Management (/central/users)"] ::: verified
+        INTEGRATION_MON["Integration Gateway (/central/integrations)"] ::: verified
+    end
+
+    CENTRAL_ROLE --> CENTRAL_DASH
+    CENTRAL_DASH --> NAT_KPI
+    CENTRAL_DASH --> NAT_PROJ
+    CENTRAL_DASH --> STATE_PERF
+    CENTRAL_DASH --> DIST_PERF
+    CENTRAL_DASH --> NAT_LAND
+    CENTRAL_DASH --> NAT_COMP
+    CENTRAL_DASH --> NAT_RR
+    CENTRAL_DASH --> NAT_POSS
+    CENTRAL_DASH --> NAT_RISK
+    CENTRAL_DASH --> POLICY_ANALYTICS
+    CENTRAL_DASH --> MIS_REPORTS
+    CENTRAL_DASH --> AUDIT_GOV
+    AUDIT_GOV --> HASH_VERIFY
+    CENTRAL_DASH --> WORKFLOW_CFG
+    CENTRAL_DASH --> USER_MGMT
+    CENTRAL_DASH --> INTEGRATION_MON
+
+    %% State Role Nodes
+    subgraph State_Module ["State Administrator Module"]
+        STATE_OVERVIEW["State Overview (/state/overview)"] ::: verified
+        STATE_PROJ["State Projects (/state/projects)"] ::: verified
+        STATE_DIST["District Monitoring (/state/districts)"] ::: verified
+        STATE_APPROVALS["State Pending Approvals (/state/approvals)"] ::: verified
+        STATE_SLA["State SLA Tracking (/state/sla)"] ::: verified
+        STATE_STATUTORY["State Statutory Milestones"] ::: verified
+        STATE_RISK["State Delay Risk Engine"] ::: verified
+        STATE_GIS["State GIS Portal (/state/gis)"] ::: verified
+    end
+
+    STATE_ROLE --> STATE_OVERVIEW
+    STATE_OVERVIEW --> STATE_PROJ
+    STATE_OVERVIEW --> STATE_DIST
+    STATE_OVERVIEW --> STATE_APPROVALS
+    STATE_OVERVIEW --> STATE_SLA
+    STATE_OVERVIEW --> STATE_STATUTORY
+    STATE_OVERVIEW --> STATE_RISK
+    STATE_OVERVIEW --> STATE_GIS
+
+    %% PIA Role Nodes
+    subgraph PIA_Module ["PIA Officer Module"]
+        PIA_DASH["PIA Workspace (/pia/projects)"] ::: verified
+        NEW_PROJ_PAGE["New Project Form (/pia/new-project)"] ::: verified
+        PROJ_CREATE_API["POST /api/projects API"] ::: verified
+        DB_PERSIST["PostgreSQL Persistence"] ::: verified
+        AUTO_WF_INIT["Auto Workflow Instantiation"] ::: verified
+        ALIGNMENT_UPLOAD["Alignment File Upload"] ::: partial
+        LAND_REQ_DEF["Land Requirement Definition"] ::: verified
+    end
+
+    PIA_ROLE --> PIA_DASH
+    PIA_DASH --> NEW_PROJ_PAGE
+    NEW_PROJ_PAGE --> ALIGNMENT_UPLOAD
+    NEW_PROJ_PAGE --> LAND_REQ_DEF
+    NEW_PROJ_PAGE --> PROJ_CREATE_API
+    PROJ_CREATE_API --> DB_PERSIST
+    DB_PERSIST --> AUTO_WF_INIT
+
+    %% District Role Nodes
+    subgraph District_Module ["District & CALA Officer Module"]
+        DIST_QUEUE["District Work Queue (/district/work-queue)"] ::: verified
+        DIST_PROP["Proposals Review (/district/proposals)"] ::: verified
+        PROP_STATUS_API["PATCH /api/proposals/:id/status"] ::: verified
+        DIST_PARCELS["District Parcels (/district/parcels)"] ::: verified
+        DIST_OBJ["Objections Scrutiny (/district/objections)"] ::: verified
+        DIST_HEARINGS["Hearings Calendar (/district/hearings)"] ::: verified
+        DIST_AWARDS["Awards Declaration (/district/awards)"] ::: verified
+        DIST_COMP["Compensation Approvals"] ::: verified
+        DIST_RR["District R&R Cases"] ::: verified
+        DIST_POSS["District Possession Handover"] ::: verified
+        DIST_SLA["District SLA Monitor (/district/sla)"] ::: verified
+        DIST_GIS["District PostGIS Layer"] ::: verified
+        DIST_DOCS["District Document Vault"] ::: verified
+        DIST_FIELD_ASSIGN["Field Assignment Manager"] ::: verified
+    end
+
+    DISTRICT_ROLE --> DIST_QUEUE
+    DIST_QUEUE --> DIST_PROP
+    DIST_PROP --> PROP_STATUS_API
+    DIST_QUEUE --> DIST_PARCELS
+    DIST_QUEUE --> DIST_OBJ
+    DIST_QUEUE --> DIST_HEARINGS
+    DIST_QUEUE --> DIST_AWARDS
+    DIST_QUEUE --> DIST_COMP
+    DIST_QUEUE --> DIST_RR
+    DIST_QUEUE --> DIST_POSS
+    DIST_QUEUE --> DIST_SLA
+    DIST_QUEUE --> DIST_GIS
+    DIST_QUEUE --> DIST_DOCS
+    DIST_QUEUE --> DIST_FIELD_ASSIGN
+
+    %% Field Officer Module
+    subgraph Field_Module ["Field Officer Module (PWA)"]
+        FIELD_HOME["Field PWA (/field/assignments)"] ::: verified
+        INDEXED_DB["IndexedDB Offline Store (Dexie.js)"] ::: verified
+        GPS_PHOTO["Geotag GPS & Photo Capture"] ::: verified
+        VERIFY_API["POST /api/parcels/verify"] ::: verified
+        OFFLINE_SYNC["Offline Queue Sync Engine"] ::: verified
+        VERIFY_PERSIST["ParcelVerification DB Model"] ::: verified
+    end
+
+    FIELD_ROLE --> FIELD_HOME
+    FIELD_HOME --> GPS_PHOTO
+    GPS_PHOTO --> INDEXED_DB
+    INDEXED_DB --> OFFLINE_SYNC
+    OFFLINE_SYNC --> VERIFY_API
+    VERIFY_API --> VERIFY_PERSIST
+
+    %% Finance Module
+    subgraph Finance_Module ["Finance Officer Module"]
+        FINANCE_DASH["Finance Workspace (/finance/compensation)"] ::: verified
+        COMP_CASES_API["GET /api/compensation/cases"] ::: verified
+        INITIATE_PAY_API["POST /api/compensation/initiate-payment"] ::: verified
+        TREASURY_MOCK["Treasury / PFMS Gateway Adapter"] ::: partial
+        PAYMENT_LEDGER["PaymentReference DB Ledger"] ::: verified
+    end
+
+    FINANCE_ROLE --> FINANCE_DASH
+    FINANCE_DASH --> COMP_CASES_API
+    COMP_CASES_API --> INITIATE_PAY_API
+    INITIATE_PAY_API --> TREASURY_MOCK
+    INITIATE_PAY_API --> PAYMENT_LEDGER
+
+    %% R&R Officer Module
+    subgraph RR_Module ["R&R Officer Module"]
+        RR_DASH["R&R Workspace (/rr/families)"] ::: verified
+        RR_FAMILIES_API["GET /api/rr/families"] ::: verified
+        ELIGIBILITY_VERIFY["Eligibility Verification Engine"] ::: verified
+        ENTITLEMENT_ASSIGN["Entitlement Assignment Engine"] ::: verified
+        BENEFIT_DELIVERY["Benefit Delivery API"] ::: verified
+    end
+
+    RR_ROLE --> RR_DASH
+    RR_DASH --> RR_FAMILIES_API
+    RR_FAMILIES_API --> ELIGIBILITY_VERIFY
+    ELIGIBILITY_VERIFY --> ENTITLEMENT_ASSIGN
+    ENTITLEMENT_ASSIGN --> BENEFIT_DELIVERY
+
+    %% GIS Officer Module
+    subgraph GIS_Module ["GIS Officer Module"]
+        GIS_DASH["GIS Spatial Workspace (/gis)"] ::: verified
+        POSTGIS_GEOJSON["PostGIS GeoJSON API (GET /api/gis/geojson)"] ::: verified
+        MAP_RENDERER["Leaflet Map Viewer Component"] ::: verified
+        SPATIAL_ANALYTICS["Spatial Analytics & Buffer Engine"] ::: partial
+        EXPORT_GEOJSON["GeoJSON/KML/Shapefile Exporter"] ::: partial
+    end
+
+    GIS_ROLE --> GIS_DASH
+    GIS_DASH --> MAP_RENDERER
+    MAP_RENDERER --> POSTGIS_GEOJSON
+    GIS_DASH --> SPATIAL_ANALYTICS
+    GIS_DASH --> EXPORT_GEOJSON
+
+    %% Citizen Module
+    subgraph Citizen_Module ["Citizen & Landowner Portal"]
+        CITIZEN_HOME["Citizen Portal (/citizen/home)"] ::: verified
+        PUBLIC_SEARCH["Public Project Search (/citizen/projects)"] ::: verified
+        MY_LAND["My Land Parcels (/citizen/my-land)"] ::: verified
+        MY_COMP["My Compensation Status (/citizen/compensation)"] ::: verified
+        MY_RR["My R&R Benefits Status (/citizen/rr)"] ::: verified
+        GRIEVANCE["Grievance Representation (/citizen/grievance)"] ::: verified
+    end
+
+    CITIZEN_ROLE --> CITIZEN_HOME
+    CITIZEN_HOME --> PUBLIC_SEARCH
+    CITIZEN_HOME --> MY_LAND
+    CITIZEN_HOME --> MY_COMP
+    CITIZEN_HOME --> MY_RR
+    CITIZEN_HOME --> GRIEVANCE
+
+    %% Unified Project Workspace
+    subgraph Project_Workspace ["Unified Project Workspace (/project/[id])"]
+        PROJ_HUB["Project Hub Container"] ::: verified
+        TAB_OVERVIEW["Overview Tab"] ::: verified
+        TAB_TIMELINE["Timeline Tab"] ::: verified
+        TAB_GIS["GIS Map Tab"] ::: verified
+        TAB_PARCELS["Parcels Tab"] ::: verified
+        TAB_WORKFLOW["Workflow Stage Tab"] ::: verified
+        TAB_DOCS["Documents Tab"] ::: verified
+        TAB_OBJ["Objections Tab"] ::: verified
+        TAB_AWARDS["Awards Tab"] ::: verified
+        TAB_COMP["Compensation Tab"] ::: verified
+        TAB_RR["R&R Tab"] ::: verified
+        TAB_POSS["Possession Tab"] ::: verified
+        TAB_AUDIT["Audit Chain Tab"] ::: verified
+    end
+
+    CENTRAL_DASH --> PROJ_HUB
+    DIST_QUEUE --> PROJ_HUB
+    PROJ_HUB --> TAB_OVERVIEW
+    PROJ_HUB --> TAB_TIMELINE
+    PROJ_HUB --> TAB_GIS
+    PROJ_HUB --> TAB_PARCELS
+    PROJ_HUB --> TAB_WORKFLOW
+    PROJ_HUB --> TAB_DOCS
+    PROJ_HUB --> TAB_OBJ
+    PROJ_HUB --> TAB_AWARDS
+    PROJ_HUB --> TAB_COMP
+    PROJ_HUB --> TAB_RR
+    PROJ_HUB --> TAB_POSS
+    PROJ_HUB --> TAB_AUDIT
+
+    %% AI Microservice Engine
+    subgraph AI_Engine ["FastAPI AI Microservice (:8000)"]
+        AI_OCR["OCR Document Extractor (POST /ocr)"] ::: verified
+        AI_RISK["Delay Risk Model (POST /risk)"] ::: verified
+        AI_NLP["NLP SQL Query Translator (POST /nlp)"] ::: verified
+    end
+
+    DIST_DOCS -.-> AI_OCR
+    NAT_RISK -.-> AI_RISK
+    CENTRAL_DASH -.-> AI_NLP
+
+    %% Workflow & Event Engine
+    subgraph Workflow_Engine ["Workflow & Event Core"]
+        WF_ACTION_API["POST /api/workflow/action"] ::: verified
+        STAGE_TRANSITION["Atomic Transactional Stage Shift"] ::: verified
+        AUDIT_APPEND["Append-Only Audit Event Log"] ::: verified
+        HASH_CALC["SHA-256 Hash Chain Calculation"] ::: verified
+        SLA_CHECK["SLA / Statutory Breach Checker"] ::: verified
+        NOTIF_GEN["In-App Notification Trigger"] ::: verified
+    end
+
+    TAB_WORKFLOW --> WF_ACTION_API
+    WF_ACTION_API --> STAGE_TRANSITION
+    STAGE_TRANSITION --> AUDIT_APPEND
+    AUDIT_APPEND --> HASH_CALC
+    STAGE_TRANSITION --> SLA_CHECK
+    SLA_CHECK --> NOTIF_GEN
+
+    %% Signature Digital Thread Execution
+    VERIFY_PERSIST ==> STAGE_TRANSITION
+    STAGE_TRANSITION ==> POSTGIS_GEOJSON
+    POSTGIS_GEOJSON ==> NAT_KPI
+    NAT_KPI ==> NOTIF_GEN
+    NOTIF_GEN ==> HASH_CALC
