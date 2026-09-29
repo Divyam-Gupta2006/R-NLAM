@@ -6,16 +6,19 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "format": "prettier --write \"src/**/*.ts\"",
-    "start": "ts-node src/main.ts",
-    "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
+    "start": "ts-node -r dotenv/config src/main.ts",
+    "start:dev": "npm run db:start && ts-node-dev --respawn --transpile-only -r dotenv/config src/main.ts",
     "start:prod": "node dist/main.js",
     "prisma:generate": "prisma generate",
     "prisma:db:push": "prisma db push",
-    "prisma:seed": "ts-node prisma/seed.ts",
-    "seed": "ts-node prisma/seed-demo.ts",
-    "seed:demo": "ts-node prisma/seed-demo.ts",
-    "seed:demo:reset": "ts-node scripts/reset-demo.ts",
-    "validate:demo": "ts-node scripts/validate-demo.ts"
+    "prisma:seed": "ts-node -r dotenv/config prisma/seed.ts",
+    "seed": "ts-node -r dotenv/config prisma/seed-demo.ts",
+    "seed:demo": "ts-node -r dotenv/config prisma/seed-demo.ts",
+    "seed:demo:reset": "ts-node -r dotenv/config scripts/reset-demo.ts",
+    "validate:demo": "ts-node -r dotenv/config scripts/validate-demo.ts",
+    "db:start": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/db-start.ps1",
+    "db:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/db-stop.ps1",
+    "db:status": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/db-status.ps1"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",
