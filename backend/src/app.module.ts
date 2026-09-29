@@ -24,6 +24,7 @@ import { RulesModule } from './rules/rules.module';
 import { SlaModule } from './sla/sla.module';
 import { StorageModule } from './storage/storage.module';
 import { LiabilityModule } from './liability/liability.module';
+import { StuckModule } from './stuck/stuck.module';
 import { StatutoryModule } from './statutory/statutory.module';
 import { SystemModule } from './system/system.module';
 import { UsersModule } from './users/users.module';
@@ -43,6 +44,7 @@ import { UsersModule } from './users/users.module';
     SystemModule,
     StatutoryModule,
     LiabilityModule,
+    StuckModule,
     // domain
     ProjectsModule,
     ProposalsModule,

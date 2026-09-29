@@ -3,6 +3,7 @@ import request = require('supertest');
 import { Clock } from '../src/common/clock';
 import { LiabilityService } from '../src/liability/liability.service';
 import { createApp } from '../src/main';
+import { resetDemo } from './reset';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 const big = (v: number | string) => BigInt(v);
@@ -22,6 +23,7 @@ describe('Interest liability (e2e)', () => {
   beforeAll(async () => {
     app = await createApp();
     await app.init();
+    await resetDemo(app);
     prisma = app.get(PrismaService);
     app.get(Clock).pin(new Date('2026-09-29T12:00:00+05:30'));
     await app.get(LiabilityService).refresh();

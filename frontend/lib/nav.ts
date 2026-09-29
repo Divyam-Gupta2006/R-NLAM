@@ -32,7 +32,7 @@ export const PORTALS: Portal[] = [
           { label: 'Projects', href: '/central/projects', icon: 'FolderKanban' },
           { label: 'States', href: '/central/states', icon: 'Building' },
           { label: 'Districts', href: '/central/districts', icon: 'MapPin' },
-          { label: 'Delay risk', href: '/central/risk', icon: 'AlertTriangle' },
+          { label: 'Why is it stuck?', href: '/central/stuck', icon: 'AlertTriangle' },
           { label: 'Statutory calendar', href: '/central/statutory', icon: 'Calendar' },
           { label: 'Interest liability', href: '/central/liability', icon: 'IndianRupee' },
           { label: 'GIS consent gate', href: '/central/consent', icon: 'ShieldAlert' },
@@ -74,7 +74,7 @@ export const PORTALS: Portal[] = [
           { label: 'Projects', href: '/state/projects', icon: 'FolderKanban' },
           { label: 'Districts', href: '/state/districts', icon: 'MapPin' },
           { label: 'Approvals', href: '/state/approvals', icon: 'CheckCircle2' },
-          { label: 'Delay risk', href: '/state/risk', icon: 'AlertTriangle' },
+          { label: 'Why is it stuck?', href: '/state/stuck', icon: 'AlertTriangle' },
         ],
       },
       {
@@ -104,6 +104,7 @@ export const PORTALS: Portal[] = [
         title: 'Today',
         items: [
           { label: 'Work queue', href: '/district/work-queue', icon: 'Inbox' },
+          { label: 'Why is it stuck?', href: '/district/stuck', icon: 'AlertTriangle' },
           { label: 'Statutory calendar', href: '/district/statutory', icon: 'Calendar' },
           { label: 'Interest liability', href: '/district/liability', icon: 'IndianRupee' },
           { label: 'GIS consent gate', href: '/district/consent', icon: 'ShieldAlert' },

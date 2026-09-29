@@ -87,7 +87,7 @@ export class GisGateService implements OnModuleInit {
   async evaluate(parcelId: string, db: Tx | PrismaService = this.prisma): Promise<GateItem[]> {
     const parcel = await db.parcel.findUnique({ where: { id: parcelId }, select: { stateCode: true } });
     if (!parcel) return [];
-    const overlaps = await db.parcelConstraint.findMany({ where: { parcelId }, include: { layer: true } });
+    const overlaps = await db.parcelConstraint.findMany({ where: { parcelId }, include: { layer: true }, orderBy: { overlapSqm: 'desc' } });
     if (!overlaps.length) return [];
     const docs = await db.document.findMany({ where: { parcelId }, select: { id: true, kind: true, referenceNo: true, title: true } });
     const now = this.clock.now();

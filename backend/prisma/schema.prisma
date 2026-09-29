@@ -868,3 +868,26 @@ model ParcelConstraint {
   @@unique([parcelId, layerId])
   @@index([parcelId])
 }
+
+// ---------------------------------------------------------------------------
+// 6.4 Why-Stuck: officer decisions on bottleneck briefs (feed back into ranking).
+// ---------------------------------------------------------------------------
+
+enum BriefDecision {
+  ACCEPTED
+  DISPUTED
+}
+
+model BottleneckDecision {
+  id        String        @id @default(uuid())
+  key       String // stable bottleneck key, e.g. GIS:<parcelId>
+  projectId String
+  decision  BriefDecision
+  comment   String
+  actorId   String
+  actorRole RoleName
+  createdAt DateTime      @default(now())
+
+  @@index([key, createdAt])
+  @@index([projectId])
+}

@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, Module, Post, Query } from '@nestjs/common';
+import { Controller, Get, Global, HttpCode, Module, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuthUser, R } from '../auth/auth.types';
 import { CurrentUser, Roles } from '../auth/decorators';
@@ -43,6 +43,7 @@ class LiabilityController {
   }
 }
 
+@Global()
 @Module({
   controllers: [LiabilityController],
   providers: [LiabilityService],

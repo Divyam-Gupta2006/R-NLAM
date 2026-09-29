@@ -9,12 +9,13 @@ import { useApi } from '@/lib/api/hooks';
 import type { ProjectDetail } from '@/lib/api/types';
 import { dateIST, ha, humanize, inr, inrShort, num } from '@/lib/format';
 import { ParcelsView } from './ParcelsView';
+import { BottleneckList } from './WhyStuckView';
 
-type Tab = 'overview' | 'parcels' | 'map';
+type Tab = 'overview' | 'stuck' | 'parcels' | 'map';
 
 export function ProjectDetailView({ id }: { id: string }) {
   const state = useApi<ProjectDetail>(`/projects/${id}`);
-  const [tab, setTab] = useState<Tab>('overview');
+  const [tab, setTab] = useState<Tab>(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'stuck' ? 'stuck' : 'overview'));
 
   return (
     <DataState state={state} rows={8}>
@@ -46,6 +47,7 @@ export function ProjectDetailView({ id }: { id: string }) {
               onChange={setTab}
               tabs={[
                 { key: 'overview', label: 'Overview' },
+                { key: 'stuck', label: 'Why stuck?' },
                 { key: 'parcels', label: 'Parcels' },
                 { key: 'map', label: 'Map' },
               ]}
@@ -107,6 +109,7 @@ export function ProjectDetailView({ id }: { id: string }) {
                 <LifecyclePanel entityType="Project" entityId={p.id} onChanged={state.reload} title="Project approval lifecycle" />
               </div>
             )}
+            {tab === 'stuck' && <BottleneckList projectId={p.id} />}
             {tab === 'parcels' && <ParcelsView title="" projectId={p.id} />}
             {tab === 'map' && (
               <Card>

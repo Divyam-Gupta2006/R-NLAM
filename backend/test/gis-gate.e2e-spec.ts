@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request = require('supertest');
 import { createApp } from '../src/main';
+import { resetDemo } from './reset';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { makePdf } from '../prisma/seed/pdf';
 
@@ -29,6 +30,7 @@ describe('GIS consent gate (e2e)', () => {
   beforeAll(async () => {
     app = await createApp();
     await app.init();
+    await resetDemo(app);
     prisma = app.get(PrismaService);
     await login('yavatmal', 'collector.yavatmal@demo.rnlam.in');
     await login('wardha', 'collector.wardha@demo.rnlam.in');

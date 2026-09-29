@@ -14,7 +14,8 @@ Living log of the SIH 2026 finalist build. Newest status first. Evidence for eve
 | 6.1 statutory rule engine | Done: verified rule packs, statutory clocks, T-60/30/7 alerts, lapse guards, calendar and rule-pack UI. `npm test` 64 passed; `npm run test:e2e` 24 passed | `feature/6.1-rule-engine` |
 | 6.2 live interest liability + roll-up | Done: s.80 interest and s.30(3) additional amount, live counter, trend, nation→parcel drill-down, act-this-week ranking. `npm test` 75 passed; `npm run test:e2e` 28 passed | `feature/6.2-interest-liability` |
 | 6.3 GIS consent gate | Done: constraint layers in PostGIS, ST_Intersects + overlap area on parcel create and layer load, backend guard on award and possession, override rules, map with exact overlaps, upload-to-clear. `npm run test:e2e` 32 passed | `feature/6.3-gis-gate` |
-| 6.4 … 6.13 | Not started | — |
+| 6.4 "Why is this project stuck?" | Done: 9 bottleneck types across rules, GIS, objections, money, R&R and litigation; priority = risk × ₹ × families with every component explained; action briefs; audited accept/dispute feedback; LLM rephrase-only with fact check. `npm test` 109 passed; `npm run test:e2e` 40 passed | `feature/6.4-why-stuck` |
+| 6.5 … 6.13 | Not started | — |
 
 ## ⚠ Read first: OneDrive
 
@@ -126,6 +127,26 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
 - **Overlaps under 10 m² are ignored** as digitising noise.
 - **Seeded documents are real files.** Tiny generated PDFs stamped SYNTHETIC, so download
   and the SHA-256 re-check work in the demo.
+
+- **Why-Stuck ranks by principle, not to fit the story.** The pitch had forest clearance
+  on top. With honest scoring, **#1 is Wadgaon/Dhanora: 14 parcels whose s.19 declaration
+  lapses in 37 days while objections are still to be heard** (26 families). The forest block
+  ranks about 14th nationally and is the top legal-bar item. I kept the ranking and changed
+  the demo script, not the scoring.
+- **Scoring refinements, each shown to officers:** (a) risk is judged on slack = days to
+  deadline − a *planning* lead time (forest clearance ~270 days, hearings ~30 days;
+  `stuck/lead-times.ts`, labelled as assumptions); (b) exposure for lapse risks is the
+  acquisition value at risk (market value + 100% solatium + accrued additional amount, a
+  lower bound); (c) families are square-root scaled so large groups lead without
+  flattening single parcels; (d) running s.80 interest has no deadline but counts as
+  "money lost daily" (0.9).
+- **Officer feedback:** a Dispute halves the priority until re-examined; an Accept records
+  ownership. Both need a comment and are audited.
+- **LLM is rephrase-only.** The default `template` provider returns the deterministic brief
+  and says it cannot translate. The OpenAI-compatible provider (Ollama/llama.cpp) output is
+  rejected unless every number, date and section citation survives, and it is labelled
+  "AI-generated".
+- **e2e files now reseed** the story in `beforeAll`, so they pass in any order (~105 s total).
 
 ## Log
 

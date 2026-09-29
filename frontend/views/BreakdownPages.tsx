@@ -4,9 +4,8 @@ import { WifiOff } from 'lucide-react';
 import React from 'react';
 import { Card, DataState, EmptyState, PageHeader } from '@/components/ui';
 import { useApi } from '@/lib/api/hooks';
-import type { Breakdown, Kpis, Project } from '@/lib/api/types';
+import type { Breakdown, Kpis } from '@/lib/api/types';
 import { BreakdownTable, KpiRow, StageFunnel } from './DashboardView';
-import { ProjectsTable } from './ProjectsView';
 
 export function StatesPage() {
   const rows = useApi<Breakdown[]>('/analytics/states');
@@ -50,20 +49,6 @@ export function AnalyticsPage() {
       </DataState>
       <Card title="Districts">
         <DataState state={districts}>{(r) => <BreakdownTable rows={r} level="District" />}</DataState>
-      </Card>
-    </div>
-  );
-}
-
-/** Risk is being rebuilt as the explainable "Why is this project stuck?" engine (6.4). */
-export function RiskPage() {
-  const projects = useApi<Project[]>('/projects');
-  return (
-    <div className="space-y-5">
-      <PageHeader title="Delay risk" subtitle="Projects in your jurisdiction. Explainable bottleneck ranking (statutory risk × ₹ liability × families) replaces the old opaque score." />
-      <EmptyState title="Bottleneck engine not yet enabled on this build" detail="Until it is, use the parcel stage breakdown on each project to see where land is stuck." />
-      <Card>
-        <DataState state={projects}>{(p) => <ProjectsTable projects={p} />}</DataState>
       </Card>
     </div>
   );

@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import request = require('supertest');
 import { Clock } from '../src/common/clock';
 import { createApp } from '../src/main';
+import { resetDemo } from './reset';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 /**
@@ -23,6 +24,7 @@ describe('Statutory rule engine (e2e)', () => {
     process.env.STATUTORY_SCHEDULER = 'off';
     app = await createApp();
     await app.init();
+    await resetDemo(app);
     prisma = app.get(PrismaService);
     clock = app.get(Clock);
     clock.pin(new Date('2026-09-29T12:00:00+05:30'));
