@@ -323,6 +323,7 @@ model Parcel {
   notices       StatutoryNotice[]
   holders       ParcelHolder[]
   caseLinks     CaseLink[]
+  fieldEvidence FieldEvidence[]
   verifications ParcelVerification[]
   objections    Objection[]
   awards        Award[]
@@ -1048,4 +1049,51 @@ model CaseLink {
 
   @@unique([courtCaseId, parcelId])
   @@index([parcelId, status])
+}
+
+enum FieldEvidenceKind {
+  POINT
+  POLYGON
+}
+
+enum FieldEvidenceStatus {
+  ACCEPTED
+  CONFLICT // another survey of the parcel arrived that this device had not seen; a supervisor decides
+  SUPERSEDED
+  REJECTED
+}
+
+/// GNSS evidence captured in the field, possibly offline (6.10). The device
+/// seals each bundle with a SHA-256 over its canonical JSON; the server
+/// recomputes it and every photo hash before accepting.
+model FieldEvidence {
+  id               String              @id @default(uuid())
+  clientId         String              @unique // generated on the device; makes upload idempotent
+  deviceId         String
+  parcelId         String
+  parcel           Parcel              @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+  capturedById     String
+  capturedAt       DateTime // device clock (UTC)
+  receivedAt       DateTime            @default(now())
+  baseSyncedAt     DateTime? // when the device last saw the server's evidence for this parcel
+  kind             FieldEvidenceKind
+  geometry         Json // GeoJSON Point or Polygon, EPSG:4326
+  accuracyM        Float // horizontal accuracy reported by the device (worst sample)
+  samples          Int                 @default(1)
+  note             String?
+  photoDocumentIds String[]
+  photoHashes      String[]
+  bundleHash       String // as sealed on the device
+  hashVerified     Boolean
+  distanceM        Float? // point: distance from the recorded boundary (0 = inside)
+  overlapIoU       Float? // polygon: intersection over union with the recorded boundary
+  capturedAreaSqm  Float?
+  status           FieldEvidenceStatus
+  conflictReason   String?
+  conflictWithId   String?
+  resolvedById     String?
+  resolvedAt       DateTime?
+  resolutionNote   String?
+
+  @@index([parcelId, receivedAt])
 }

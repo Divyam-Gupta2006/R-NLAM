@@ -10,7 +10,7 @@ type Category = 'LEGAL' | 'LAND' | 'MONEY' | 'PEOPLE' | 'EVIDENCE' | 'OVERSIGHT'
 /** Which strand of the thread an audited action belongs to. */
 function categorise(entityType: string, action: string): Category {
   if (action.includes('OVERRIDE')) return 'OVERSIGHT';
-  if (entityType === 'Document') return 'EVIDENCE';
+  if (entityType === 'Document' || entityType === 'FieldEvidence') return 'EVIDENCE';
   if (entityType === 'Compensation' || entityType === 'Award' || action.includes('AWARD') || action.includes('PAY')) return 'MONEY';
   if (entityType === 'RRCase' || entityType === 'RREntitlementGrant' || entityType === 'PersonMatch' || action.startsWith('IDENTITY')) return 'PEOPLE';
   if (entityType === 'CaseLink') return 'LEGAL';
@@ -80,6 +80,7 @@ class ThreadService {
         documents: { select: { id: true, title: true, sha256: true, kind: true } },
         holders: { select: { personId: true } },
         caseLinks: { select: { id: true } },
+        fieldEvidence: { select: { id: true } },
       },
     });
     if (!p) throw new NotFoundException('Parcel not found');
@@ -100,6 +101,7 @@ class ThreadService {
     for (const d of p.documents) related.set(d.id, 'Document');
     for (const m of matches) related.set(m.id, 'PersonMatch');
     for (const l of p.caseLinks) related.set(l.id, 'CaseLink');
+    for (const e of p.fieldEvidence) related.set(e.id, 'FieldEvidence');
 
     const audits = await this.prisma.auditEvent.findMany({
       where: { entityId: { in: [...related.keys()] } },

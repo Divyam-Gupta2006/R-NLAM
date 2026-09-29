@@ -23,6 +23,8 @@ import { screenParcels } from '../../src/gis/gis-gate.service';
 import { runReconciliation } from '../../src/reconciliation/reconciliation.module';
 import { syncCourtCases } from '../../src/court/court.module';
 import { SyntheticEcourtsAdapter } from '../../src/court/ecourts.adapter';
+import { bundleSeal } from '../../src/field/field-evidence';
+import { evidenceGeometryCheck } from '../../src/field/field-geo';
 import { sealAudit } from '../../src/audit/merkle.service';
 import { LocalDiskStorage } from '../../src/storage/storage';
 import { makePdf } from './pdf';
@@ -193,6 +195,7 @@ export async function seedDemo(prisma: PrismaClient) {
   for (const p of OTHER_PROJECTS) await seedOtherProject(ctx, p);
   await seedConstraintLayers(ctx);
   await seedAwardCopy(ctx);
+  await seedFieldEvidence(ctx);
   await seedCitizenLogins(ctx);
   const written = await ctx.history.flush(prisma);
   const clocks = await seedClocks(prisma);
@@ -277,6 +280,7 @@ async function seedOrgsAndUsers(ctx: Ctx) {
     { key: 'collectorWardha', email: 'collector.wardha', name: 'Priya Wagh', role: RoleName.DISTRICT_OFFICER, designation: 'Collector & District Magistrate, Wardha', jur: 'MH-WRD', org: mhRev.id },
     { key: 'collectorYavatmal', email: 'collector.yavatmal', name: 'Sameer Khan', role: RoleName.DISTRICT_OFFICER, designation: 'Collector & District Magistrate, Yavatmal', jur: 'MH-YTL', org: mhRev.id },
     { key: 'field', email: 'surveyor.wardha', name: 'Kiran Bhosale', role: RoleName.FIELD_OFFICER, designation: 'Circle Officer (Survey), Wardha', jur: 'MH-WRD', org: mhRev.id },
+    { key: 'field2', email: 'surveyor2.wardha', name: 'Sachin Ingole', role: RoleName.FIELD_OFFICER, designation: 'Nimtandar (Surveyor), Wardha', jur: 'MH-WRD', org: mhRev.id },
     { key: 'rr', email: 'rr.wardha', name: 'Deepa Nair', role: RoleName.RR_OFFICER, designation: 'R&R Administrator, Wardha', jur: 'MH-WRD', org: mhRev.id },
     { key: 'finance', email: 'finance.mh', name: 'Arvind Joshi', role: RoleName.FINANCE_OFFICER, designation: 'Accounts Officer (LA), Maharashtra', jur: 'MH', org: mhRev.id },
     { key: 'gis', email: 'gis.mh', name: 'Farah Siddiqui', role: RoleName.GIS_OFFICER, designation: 'GIS Analyst, MRSAC liaison', jur: 'MH', org: mhRev.id },
@@ -1091,6 +1095,65 @@ async function seedAwardCopy(ctx: Ctx) {
     `Total compensation: ${rs(award.totalPaise)}`,
     `Date of award: ${longDate}`,
   ]);
+}
+
+/**
+ * Field evidence (6.10), sealed exactly as a device would seal it:
+ * - WRD-ANJ-002: the boundary walked at the joint inspection before possession;
+ * - WRD-KRG-005: two surveyors' points; the second was captured offline and
+ *   synced after the first, so it arrives as a CONFLICT for the Collector.
+ */
+async function seedFieldEvidence(ctx: Ctx) {
+  const { prisma } = ctx;
+  const byNo = async (n: string) => prisma.parcel.findFirstOrThrow({ where: { parcelNumber: n }, select: { id: true, parcelNumber: true, geometry: true } });
+  const ring = (g: unknown): [number, number][] => {
+    const geo = g as { type: string; coordinates: number[][][] | number[][][][] };
+    return (geo.type === 'MultiPolygon' ? (geo.coordinates as number[][][][])[0][0] : (geo.coordinates as number[][][])[0]) as [number, number][];
+  };
+  const r7 = (x: number) => Math.round(x * 1e7) / 1e7;
+  const add = async (p: { id: string; parcelNumber: string }, who: { id: string; role: RoleName }, e: { clientId: string; deviceId: string; kind: 'POINT' | 'POLYGON'; geometry: object; accuracyM: number; samples: number; capturedAt: string; receivedAt: string; baseSyncedAt: string | null; note: string }) => {
+    const bundle = { clientId: e.clientId, deviceId: e.deviceId, parcelId: p.id, kind: e.kind, geometry: e.geometry, accuracyM: e.accuracyM, samples: e.samples, capturedAt: e.capturedAt, baseSyncedAt: e.baseSyncedAt, note: e.note, photoHashes: [] as string[] };
+    const seal = bundleSeal(bundle);
+    const geo = await evidenceGeometryCheck(prisma, p.id, { kind: e.kind, geometry: e.geometry as never });
+    const prior = await prisma.fieldEvidence.findFirst({ where: { parcelId: p.id, kind: e.kind, status: 'ACCEPTED', capturedById: { not: who.id }, receivedAt: { gt: e.baseSyncedAt ? new Date(e.baseSyncedAt) : new Date(0) } } });
+    const ev = await prisma.fieldEvidence.create({
+      data: {
+        clientId: e.clientId, deviceId: e.deviceId, parcelId: p.id, capturedById: who.id, capturedAt: new Date(e.capturedAt), receivedAt: new Date(e.receivedAt),
+        baseSyncedAt: e.baseSyncedAt ? new Date(e.baseSyncedAt) : null, kind: e.kind, geometry: e.geometry as Prisma.InputJsonValue, accuracyM: e.accuracyM, samples: e.samples, note: e.note,
+        photoDocumentIds: [], photoHashes: [], bundleHash: seal, hashVerified: true, ...geo,
+        status: prior ? 'CONFLICT' : 'ACCEPTED', conflictWithId: prior?.id ?? null,
+        conflictReason: prior ? `Another point survey of this parcel reached the server at ${prior.receivedAt.toISOString()}, after this device last synced; a supervisor must choose.` : null,
+      },
+    });
+    ctx.history.audit({ action: prior ? 'FIELD_EVIDENCE_CONFLICT' : 'FIELD_EVIDENCE_RECEIVED', entityType: 'FieldEvidence', entityId: ev.id, at: new Date(e.receivedAt), actor: actor(who), newState: { parcelNumber: p.parcelNumber, clientId: e.clientId, deviceSeal: seal, hashVerified: true, kind: e.kind, accuracyM: e.accuracyM, capturedAt: e.capturedAt, distanceM: ev.distanceM, overlapIoU: ev.overlapIoU, photos: 0, status: ev.status } });
+  };
+
+  // Boundary walk: the recorded corners, each off by a metre or two as a handheld GNSS would be.
+  const anji = await byNo(STORY.livePossessionParcel);
+  const rng = makeRng(610);
+  const m = 1 / 111_195;
+  const corners = ring(anji.geometry).slice(0, -1).map(([x, y]) => [r7(x + (rng.next() - 0.5) * 3 * m), r7(y + (rng.next() - 0.5) * 3 * m)] as [number, number]);
+  await add(anji, ctx.users.field, {
+    clientId: '6f1d8a52-0c3e-4b7a-9e21-5a0b7c3d9e01', deviceId: 'field-tab-wardha-01', kind: 'POLYGON', geometry: { type: 'Polygon', coordinates: [[...corners, corners[0]]] },
+    accuracyM: 3.6, samples: corners.length * 5, capturedAt: '2026-06-02T05:12:40.000Z', receivedAt: '2026-06-02T11:02:10.000Z', baseSyncedAt: null,
+    note: 'Joint inspection with the holder before possession; all boundary stones found.',
+  });
+
+  // Two points on the R&R-blocked parcel: the second device was offline for three days.
+  const krg = await byNo(STORY.rrBlockedParcel);
+  const kr = ring(krg.geometry);
+  const cx = kr.slice(0, -1).reduce((s, q) => s + q[0], 0) / (kr.length - 1);
+  const cy = kr.slice(0, -1).reduce((s, q) => s + q[1], 0) / (kr.length - 1);
+  await add(krg, ctx.users.field, {
+    clientId: '0b9e4c11-7a2f-4d68-8c5e-3f1a2b6c7d02', deviceId: 'field-tab-wardha-01', kind: 'POINT', geometry: { type: 'Point', coordinates: [r7(cx), r7(cy)] },
+    accuracyM: 4.1, samples: 12, capturedAt: '2026-08-20T06:30:00.000Z', receivedAt: '2026-08-20T06:31:05.000Z', baseSyncedAt: '2026-08-15T04:00:00.000Z',
+    note: 'Temporary sheds of two displaced families still on the plot.',
+  });
+  await add(krg, ctx.users.field2, {
+    clientId: '9c7a2e33-1b4d-4f0a-a6d9-8e2f4c1b0a03', deviceId: 'field-phone-wardha-07', kind: 'POINT', geometry: { type: 'Point', coordinates: [r7(cx + 38 * m), r7(cy + 12 * m)] },
+    accuracyM: 14.5, samples: 3, capturedAt: '2026-08-19T09:05:00.000Z', receivedAt: '2026-08-22T13:40:00.000Z', baseSyncedAt: '2026-08-15T04:00:00.000Z',
+    note: 'Plot vacant; no structures seen (captured offline).',
+  });
 }
 
 /**
