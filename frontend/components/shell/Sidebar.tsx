@@ -3,6 +3,7 @@
 import {
   AlertTriangle,
   Award,
+  BookOpenCheck,
   BarChart3,
   Building,
   Calendar,
@@ -43,7 +44,7 @@ import { portalFor } from '@/lib/nav';
 import { cn } from '@/lib/utils';
 
 const ICONS: Record<string, LucideIcon> = {
-  AlertTriangle, Award, BarChart3, Building, Calendar, CheckCircle2, Clock, Compass, CreditCard, Download, FileCheck, FileSpreadsheet, FileText,
+  AlertTriangle, Award, BarChart3, BookOpenCheck, Building, Calendar, CheckCircle2, Clock, Compass, CreditCard, Download, FileCheck, FileSpreadsheet, FileText,
   FolderKanban, Gavel, GitBranch, Globe, HeartHandshake, Inbox, IndianRupee, KeyRound, Layers, LayoutDashboard, Map, MapPin, MessageSquareWarning,
   PlusCircle, ShieldCheck, Smartphone, Upload, UserCheck, Users, WifiOff, XCircle,
 };

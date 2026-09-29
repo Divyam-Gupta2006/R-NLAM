@@ -1,7 +1,7 @@
 'use client';
 
-import { NoticesView } from '@/views/CaseworkViews';
+import { StatutoryCalendarView } from '@/views/StatutoryViews';
 
 export default function Page() {
-  return <NoticesView eyebrow="District Collectorate" title="Statutory notices" />;
+  return <StatutoryCalendarView eyebrow="District Collectorate" />;
 }

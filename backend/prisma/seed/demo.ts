@@ -15,7 +15,10 @@ import { calculateAward } from '../../src/awards/award-calculator';
 import { splitByShare } from '../../src/awards/split';
 import { addDays, parseIstDate } from '../../src/common/dates';
 import { rupeesToPaise } from '../../src/common/money';
-import { RulesService } from '../../src/rules/rules.service';
+import { PrismaService } from '../../src/prisma/prisma.service';
+import { computeClocks } from '../../src/rules/clocks';
+import { installPacks, RulesService } from '../../src/rules/rules.service';
+import { factsOf, parcelInclude } from '../../src/statutory/statutory.service';
 import { corridorRect, LngLat } from './geo';
 import { SeedActor, SeedHistory } from './history';
 import { makeRng, Rng } from './rng';
@@ -65,6 +68,8 @@ const MAIN_VILLAGES: VillageSpec[] = [
 ];
 
 const DATES = {
+  wardhaSia: parseIstDate('2024-12-20'),
+  yavatmalSia: parseIstDate('2025-05-12'),
   wardhaSec11: parseIstDate('2025-06-10'),
   wardhaSec19: parseIstDate('2026-02-16'),
   yavatmalSec11: parseIstDate('2025-11-05'),
@@ -118,7 +123,7 @@ const OTHER_PROJECTS: OtherProject[] = [
     code: 'RING-KA-MYS', name: 'Mysuru Outer Ring Road Phase II', sector: 'Roads', stateCode: 'KA', stateName: 'Karnataka',
     district: { code: 'KA-MYS', name: 'Mysuru' }, pia: 'State Highways Development Project (synthetic record)',
     from: [76.58, 12.35], to: [76.7, 12.26], villages: [{ code: 'KA-MYS-HNK', name: 'Hinkal' }, { code: 'KA-MYS-BGR', name: 'Bogadi' }, { code: 'KA-MYS-SGH', name: 'Siddalingapura' }],
-    sec11: '2025-01-20', sec19: '2025-10-02', ratePerHa: [4_500_000, 9_000_000], maturity: 0.65,
+    sec11: '2025-01-20', sec19: '2025-10-02', ratePerHa: [2_500_000, 5_500_000], maturity: 0.65,
   },
   {
     code: 'IND-UP-JWR', name: 'Jewar Industrial Node Access Road', sector: 'Industrial', stateCode: 'UP', stateName: 'Uttar Pradesh',
@@ -166,13 +171,14 @@ export async function seedDemo(prisma: PrismaClient) {
     prisma,
     history: new SeedHistory(),
     rng: makeRng(2026_09_29),
-    rules: new RulesService(),
+    rules: new RulesService(prisma as unknown as PrismaService),
     users: {},
     jur: {},
     entitlements: {},
     counters: { award: {}, person: 0 },
   };
 
+  await installPacks(prisma);
   await seedJurisdictions(ctx);
   await seedOrgsAndUsers(ctx);
   await seedEntitlements(ctx);
@@ -180,6 +186,7 @@ export async function seedDemo(prisma: PrismaClient) {
   for (const p of OTHER_PROJECTS) await seedOtherProject(ctx, p);
   await seedCitizenLogins(ctx);
   const written = await ctx.history.flush(prisma);
+  const clocks = await seedClocks(prisma);
 
   const counts = {
     projects: await prisma.project.count(),
@@ -189,6 +196,7 @@ export async function seedDemo(prisma: PrismaClient) {
     families: await prisma.affectedFamily.count(),
     users: await prisma.user.count(),
     ...written,
+    clocks,
   };
   return { mainProjectId: main.id, counts };
 }
@@ -332,6 +340,7 @@ interface ParcelPlan {
 }
 
 interface NoticeSet {
+  sia?: { id: string; date: Date };
   sec11?: { id: string; date: Date };
   sec19?: { id: string; date: Date };
 }
@@ -454,6 +463,7 @@ async function buildParcel(
   if (!reach('PRELIM_NOTIFIED') || !args.notices.sec11) {
     return { id: parcel.id, parcelNumber: parcel.parcelNumber, projectId: args.projectId, districtCode: args.district.code };
   }
+  if (args.notices.sia) await prisma.statutoryNotice.update({ where: { id: args.notices.sia.id }, data: { parcels: { connect: { id: parcel.id } } } });
   await prisma.statutoryNotice.update({ where: { id: args.notices.sec11.id }, data: { parcels: { connect: { id: parcel.id } } } });
   await move('PUBLISH_PRELIMINARY', 'PRELIM_NOTIFIED', args.notices.sec11.date, col, { noticeId: args.notices.sec11.id });
 
@@ -471,10 +481,12 @@ async function buildParcel(
 
   // Award
   const awardDate = clampDate(addDays(args.notices.sec19.date, rng.int(55, 140)));
-  const { rules, packCode, unverified } = await ctx.rules.awardRules({ stateCode: args.state.code, isRural: true, distanceFromUrbanKm: args.distanceKm }, args.notices.sec11.date);
+  const { rules, packCode, packs, unverified } = await ctx.rules.awardRules({ stateCode: args.state.code, isRural: true, distanceFromUrbanKm: args.distanceKm }, awardDate);
+  // s.30(3): the additional amount runs from the s.4(2) SIA notification.
+  const additionalFrom = args.notices.sia?.date ?? args.notices.sec11.date;
   const assets = rng.chance(0.5) ? rng.int(20, 400) * 1000 : 0;
   const b = calculateAward(
-    { areaHa: args.areaHa, marketRatePaisePerHa: rupeesToPaise(args.ratePerHa), assetsValuePaise: rupeesToPaise(assets), sec11Date: args.notices.sec11.date, cutoffDate: awardDate },
+    { areaHa: args.areaHa, marketRatePaisePerHa: rupeesToPaise(args.ratePerHa), assetsValuePaise: rupeesToPaise(assets), additionalFrom, cutoffDate: awardDate },
     rules,
   );
   const seq = (ctx.counters.award[args.district.code] = (ctx.counters.award[args.district.code] ?? 0) + 1);
@@ -490,7 +502,7 @@ async function buildParcel(
       solatiumPaise: b.solatiumPaise,
       additionalAmountPaise: b.additionalAmountPaise,
       totalPaise: b.totalPaise,
-      calculation: JSON.parse(JSON.stringify({ ...b, packCode, unverified, sec11Date: args.notices.sec11.date }, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))),
+      calculation: JSON.parse(JSON.stringify({ ...b, packCode, packs, unverified, additionalFrom, additionalFromEvent: args.notices.sia ? 'SEC_4_SIA' : 'SEC_11_PRELIMINARY' }, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))),
     },
   });
   const shares = splitByShare(b.totalPaise, holders.map((h) => ({ ...h, sharePct: h.share })));
@@ -633,11 +645,13 @@ async function seedMainProject(ctx: Ctx) {
   }
 
   // Notices per district
+  const wardhaSia = await prisma.statutoryNotice.create({ data: { projectId: project.id, kind: NoticeKind.SEC_4_SIA, referenceNo: 'SIA/WRD/4/2024/11', gazetteRef: 'Notification of SIA study, s.4(2) (synthetic ref)', publishedOn: DATES.wardhaSia } });
+  const ytlSia = await prisma.statutoryNotice.create({ data: { projectId: project.id, kind: NoticeKind.SEC_4_SIA, referenceNo: 'SIA/YTL/4/2025/04', gazetteRef: 'Notification of SIA study, s.4(2) (synthetic ref)', publishedOn: DATES.yavatmalSia } });
   const wardhaSec11 = await prisma.statutoryNotice.create({ data: { projectId: project.id, kind: NoticeKind.SEC_11_PRELIMINARY, referenceNo: 'LAQ/WRD/11/2025/03', gazetteRef: 'Maharashtra Government Gazette (synthetic ref)', publishedOn: DATES.wardhaSec11 } });
   const wardhaSec19 = await prisma.statutoryNotice.create({ data: { projectId: project.id, kind: NoticeKind.SEC_19_DECLARATION, referenceNo: 'LAQ/WRD/19/2026/01', gazetteRef: 'Maharashtra Government Gazette (synthetic ref)', publishedOn: DATES.wardhaSec19 } });
   const ytlSec11 = await prisma.statutoryNotice.create({ data: { projectId: project.id, kind: NoticeKind.SEC_11_PRELIMINARY, referenceNo: 'LAQ/YTL/11/2025/09', gazetteRef: 'Maharashtra Government Gazette (synthetic ref)', publishedOn: DATES.yavatmalSec11 } });
   const ytlSec19 = await prisma.statutoryNotice.create({ data: { projectId: project.id, kind: NoticeKind.SEC_19_DECLARATION, referenceNo: 'LAQ/YTL/19/2026/02', gazetteRef: 'Maharashtra Government Gazette (synthetic ref)', publishedOn: DATES.yavatmalSec19 } });
-  for (const n of [wardhaSec11, wardhaSec19, ytlSec11, ytlSec19]) {
+  for (const n of [wardhaSia, ytlSia, wardhaSec11, wardhaSec19, ytlSec11, ytlSec19]) {
     history.audit({ action: `NOTICE_PUBLISHED_${n.kind}`, entityType: 'StatutoryNotice', entityId: n.id, at: n.publishedOn, actor: actor(n.referenceNo.includes('WRD') ? ctx.users.collectorWardha : ctx.users.collectorYavatmal), newState: { referenceNo: n.referenceNo } });
   }
 
@@ -686,8 +700,9 @@ async function seedMainProject(ctx: Ctx) {
     const prefix = `${isWardha ? 'WRD' : 'YTL'}-${v.code.split('-')[2]}`;
     for (let i = 1; i <= v.parcels; i++) {
       const parcelNumber = `${prefix}-${String(i).padStart(3, '0')}`;
-      const len = perParcelKm * rng.float(0.55, 0.9);
-      const width = rng.float(0.035, 0.05);
+      // Highway strips: 120–300 m long, 50–70 m wide → roughly 0.6–2.1 ha.
+      const len = rng.float(0.12, 0.3);
+      const width = rng.float(0.025, 0.035);
       const { geometry, areaHa } = corridorRect(WARDHA, YAVATMAL, km, km + len, width, width);
       km += perParcelKm;
       requiredArea += areaHa;
@@ -732,8 +747,9 @@ async function seedMainProject(ctx: Ctx) {
         distanceKm: rng.int(4, 38),
         landClass: parcelNumber === STORY.forestParcel ? 'Agricultural (dry), abutting forest' : rng.pick(['Agricultural (irrigated)', 'Agricultural (dry)', 'Agricultural (dry)', 'Horticulture']),
         notices: isWardha
-          ? { sec11: { id: wardhaSec11.id, date: DATES.wardhaSec11 }, sec19: { id: wardhaSec19.id, date: DATES.wardhaSec19 } }
+          ? { sia: { id: wardhaSia.id, date: DATES.wardhaSia }, sec11: { id: wardhaSec11.id, date: DATES.wardhaSec11 }, sec19: { id: wardhaSec19.id, date: DATES.wardhaSec19 } }
           : {
+              sia: { id: ytlSia.id, date: DATES.yavatmalSia },
               sec11: { id: ytlSec11.id, date: DATES.yavatmalSec11 },
               sec19: v.code === 'MH-YTL-WDG' || v.code === 'MH-YTL-DHN' ? undefined : { id: ytlSec19.id, date: DATES.yavatmalSec19 },
             },
@@ -834,6 +850,7 @@ async function seedOtherProject(ctx: Ctx, spec: OtherProject) {
   });
   history.transition({ entityType: 'Project', entityId: project.id, event: 'ACTIVATE', from: 'APPROVED', to: 'ACTIVE', at: addDays(parseIstDate(spec.sec11), -30), actor: actor(ctx.users.central) });
   const collector = ctx.users[`collector:${spec.district.code}`];
+  const sia = await prisma.statutoryNotice.create({ data: { projectId: project.id, kind: 'SEC_4_SIA', referenceNo: `SIA/${spec.district.code}/4`, publishedOn: addDays(parseIstDate(spec.sec11), -150) } });
   const sec11 = await prisma.statutoryNotice.create({ data: { projectId: project.id, kind: 'SEC_11_PRELIMINARY', referenceNo: `LAQ/${spec.district.code}/11`, publishedOn: parseIstDate(spec.sec11) } });
   const sec19 = spec.sec19 ? await prisma.statutoryNotice.create({ data: { projectId: project.id, kind: 'SEC_19_DECLARATION', referenceNo: `LAQ/${spec.district.code}/19`, publishedOn: parseIstDate(spec.sec19) } }) : null;
 
@@ -843,7 +860,7 @@ async function seedOtherProject(ctx: Ctx, spec: OtherProject) {
   let area = 0;
   for (let i = 0; i < n; i++) {
     const village = spec.villages[Math.floor((i / n) * spec.villages.length)];
-    const len = (kmTotal / n) * rng.float(0.6, 0.9);
+    const len = Math.min((kmTotal / n) * 0.9, rng.float(0.12, 0.35));
     const { geometry, areaHa } = corridorRect(spec.from, spec.to, (kmTotal / n) * i + 0.2, (kmTotal / n) * i + 0.2 + len, 0.03, 0.03);
     area += areaHa;
     // maturity skews parcels towards later stages
@@ -862,7 +879,7 @@ async function seedOtherProject(ctx: Ctx, spec: OtherProject) {
       ratePerHa: rng.int(spec.ratePerHa[0], spec.ratePerHa[1]),
       distanceKm: rng.int(3, 40),
       landClass: rng.pick(['Agricultural (dry)', 'Agricultural (irrigated)', 'Barren', 'Horticulture']),
-      notices: { sec11: { id: sec11.id, date: sec11.publishedOn }, sec19: sec19 ? { id: sec19.id, date: sec19.publishedOn } : undefined },
+      notices: { sia: { id: sia.id, date: sia.publishedOn }, sec11: { id: sec11.id, date: sec11.publishedOn }, sec19: sec19 ? { id: sec19.id, date: sec19.publishedOn } : undefined },
       plan: { target, comp: rng.pick(['APPROVED', 'ASSESSED', 'APPROVED', 'PARTIAL'] as const) },
       collector,
     });
@@ -887,4 +904,20 @@ async function seedCitizenLogins(ctx: Ctx) {
       },
     });
   }
+}
+
+/** Statutory clocks for every parcel, computed exactly as StatutoryService does at runtime. */
+async function seedClocks(prisma: PrismaClient) {
+  const rules = new RulesService(prisma as unknown as PrismaService);
+  const parcels = await prisma.parcel.findMany({ include: parcelInclude });
+  const now = new Date();
+  let n = 0;
+  for (const p of parcels) {
+    const resolver = await rules.resolverFor(p.stateCode);
+    for (const c of computeClocks(factsOf(p), resolver, now)) {
+      await prisma.statutoryClock.create({ data: { ...c, parcelId: p.id, projectId: p.projectId, districtCode: p.districtCode, stateCode: p.stateCode } });
+      n++;
+    }
+  }
+  return n;
 }

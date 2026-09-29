@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { IsDateString, IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min } from 'class-validator';
 import { AuthUser, R } from '../auth/auth.types';
 import { CurrentUser, Roles } from '../auth/decorators';
 import { AwardsService } from './awards.service';
@@ -13,6 +13,17 @@ class AwardDto {
   @IsNumber()
   @Min(0)
   assetsValueRupees?: number;
+
+  @ApiPropertyOptional({ description: 'Senior officers: proceed past overridable blockers, e.g. an award period extended by Government order (proviso to s.25)' })
+  @IsOptional()
+  @IsBoolean()
+  override?: boolean;
+
+  @ApiPropertyOptional({ description: 'Required (≥ 20 chars) with override, e.g. the extension order reference' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  reason?: string;
 }
 
 @ApiTags('awards')
@@ -39,6 +50,6 @@ export class AwardsController {
   @Roles(...R.ACQUISITION)
   @ApiOperation({ summary: 'Declare the award (s.23): creates the award and per-holder compensation, moves the parcel to AWARDED' })
   declare(@CurrentUser() user: AuthUser, @Body() dto: AwardDto) {
-    return this.awards.declare(user, { parcelId: dto.parcelId, awardDate: new Date(dto.awardDate), assetsValueRupees: dto.assetsValueRupees });
+    return this.awards.declare(user, { parcelId: dto.parcelId, awardDate: new Date(dto.awardDate), assetsValueRupees: dto.assetsValueRupees, override: dto.override, reason: dto.reason });
   }
 }

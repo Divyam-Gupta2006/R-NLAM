@@ -7,6 +7,7 @@ import { DeclareAwardButton, HandOverButton, PayButton, TakePossessionButton, Tr
 import { AwardBreakdown } from '@/components/AwardBreakdown';
 import { LifecyclePanel } from '@/components/LifecyclePanel';
 import { ParcelMapCanvas } from '@/components/map/ParcelMap';
+import { ParcelClocks } from '@/views/StatutoryViews';
 import type { ParcelFeature } from '@/components/map/map-types';
 import { Badge, Card, DataState, EmptyState, PageHeader, Stat, StatusBadge, SyntheticTag } from '@/components/ui';
 import { useUser } from '@/context/SessionContext';
@@ -185,6 +186,9 @@ function ParcelDetailBody({ p, reload }: { p: ParcelDetail; reload: () => void }
 
         <div className="space-y-5">
           <LifecyclePanel entityType="Parcel" entityId={p.id} onChanged={reload} showHistory={false} title="What can happen next" />
+          <Card title="Statutory clocks" subtitle="From the rule pack in force when each clock started">
+            <ParcelClocks parcelId={p.id} />
+          </Card>
           {feature.length > 0 && (
             <Card title="Boundary" subtitle={<span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> PostGIS-validated geometry</span>}>
               <ParcelMapCanvas features={feature} height={260} />

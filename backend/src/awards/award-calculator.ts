@@ -23,7 +23,8 @@ export interface AwardInputs {
   areaHa: number;
   marketRatePaisePerHa: bigint;
   assetsValuePaise: bigint;
-  sec11Date: Date;
+  /** Start of the s.30(3) additional amount: the s.4(2) SIA notification (s.11 if SIA was exempted). */
+  additionalFrom: Date;
   /** Award date, or possession date if possession was taken earlier (s.30(3)). */
   cutoffDate: Date;
 }
@@ -56,14 +57,14 @@ function toMicroHa(areaHa: number): bigint {
 
 export function calculateAward(input: AwardInputs, rules: AwardRules): AwardBreakdown {
   if (input.areaHa <= 0) throw new RangeError('areaHa must be positive');
-  if (input.cutoffDate < input.sec11Date) throw new RangeError('cutoff date precedes the s.11 notification');
+  if (input.cutoffDate < input.additionalFrom) throw new RangeError('cutoff date precedes the start of the additional amount');
 
   const marketValuePaise = divRound(input.marketRatePaisePerHa * toMicroHa(input.areaHa), 1_000_000n);
   const multipliedValuePaise = divRound(marketValuePaise * BigInt(rules.multiplierHundredths), 100n);
   const compensationPaise = multipliedValuePaise + input.assetsValuePaise;
   const solatiumPaise = applyBasisPoints(compensationPaise, rules.solatiumBp);
 
-  const additionalDays = Math.max(0, daysBetween(input.sec11Date, input.cutoffDate));
+  const additionalDays = Math.max(0, daysBetween(input.additionalFrom, input.cutoffDate));
   // market value × rate × days / (basis × 10 000), rounded once at the end
   const additionalAmountPaise = divRound(
     marketValuePaise * BigInt(rules.additionalBpPerYear) * BigInt(additionalDays),
@@ -92,7 +93,7 @@ export function calculateAward(input: AwardInputs, rules: AwardRules): AwardBrea
         key: 'additional',
         label: 'Additional amount',
         amountPaise: additionalAmountPaise,
-        formula: `${rules.additionalBpPerYear / 100}% p.a. on market value × ${additionalDays} days (${istDateString(input.sec11Date)} → ${istDateString(input.cutoffDate)})`,
+        formula: `${rules.additionalBpPerYear / 100}% p.a. on market value × ${additionalDays} days (${istDateString(input.additionalFrom)} → ${istDateString(input.cutoffDate)})`,
         citation: rules.additionalCitation,
       },
       { key: 'total', label: 'Total award', amountPaise: totalPaise, formula: 'compensation + solatium + additional amount' },

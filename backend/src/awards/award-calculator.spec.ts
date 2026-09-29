@@ -19,7 +19,7 @@ describe('calculateAward', () => {
         areaHa: 1.5,
         marketRatePaisePerHa: rupeesToPaise(1_000_000),
         assetsValuePaise: rupeesToPaise(200_000),
-        sec11Date: parseIstDate('2025-06-10'),
+        additionalFrom: parseIstDate('2025-06-10'),
         cutoffDate: parseIstDate('2026-06-10'),
       },
       RFCTLARR,
@@ -44,7 +44,7 @@ describe('calculateAward', () => {
     const sec11 = parseIstDate('2025-01-01');
     const cutoff = new Date(sec11.getTime() + Number(days) * 86_400_000);
     const b = calculateAward(
-      { areaHa: Number(area), marketRatePaisePerHa: rupeesToPaise(Number(rate)), assetsValuePaise: 0n, sec11Date: sec11, cutoffDate: cutoff },
+      { areaHa: Number(area), marketRatePaisePerHa: rupeesToPaise(Number(rate)), assetsValuePaise: 0n, additionalFrom: sec11, cutoffDate: cutoff },
       { ...RFCTLARR, multiplierHundredths: Number(mult) },
     );
     expect(b.additionalDays).toBe(days);
@@ -54,7 +54,7 @@ describe('calculateAward', () => {
 
   it('components always add up to the total, to the paisa', () => {
     const b = calculateAward(
-      { areaHa: 0.333, marketRatePaisePerHa: rupeesToPaise(987_654.32), assetsValuePaise: rupeesToPaise(12_345.67), sec11Date: parseIstDate('2025-02-03'), cutoffDate: parseIstDate('2026-03-17') },
+      { areaHa: 0.333, marketRatePaisePerHa: rupeesToPaise(987_654.32), assetsValuePaise: rupeesToPaise(12_345.67), additionalFrom: parseIstDate('2025-02-03'), cutoffDate: parseIstDate('2026-03-17') },
       { ...RFCTLARR, multiplierHundredths: 137 },
     );
     expect(b.multipliedValuePaise + b.assetsValuePaise + b.solatiumPaise + b.additionalAmountPaise).toBe(b.totalPaise);
@@ -63,7 +63,7 @@ describe('calculateAward', () => {
   it('rejects a cutoff before the s.11 notification', () => {
     expect(() =>
       calculateAward(
-        { areaHa: 1, marketRatePaisePerHa: 100n, assetsValuePaise: 0n, sec11Date: parseIstDate('2026-01-02'), cutoffDate: parseIstDate('2026-01-01') },
+        { areaHa: 1, marketRatePaisePerHa: 100n, assetsValuePaise: 0n, additionalFrom: parseIstDate('2026-01-02'), cutoffDate: parseIstDate('2026-01-01') },
         RFCTLARR,
       ),
     ).toThrow(RangeError);

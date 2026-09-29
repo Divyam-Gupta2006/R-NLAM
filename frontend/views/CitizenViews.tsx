@@ -8,6 +8,7 @@ import { AwardBreakdown } from '@/components/AwardBreakdown';
 import { ParcelMapCanvas } from '@/components/map/ParcelMap';
 import { Badge, DataState, EmptyState, Spinner, StatusBadge, SyntheticTag } from '@/components/ui';
 import { homeFor, useSession } from '@/context/SessionContext';
+import { ParcelClocks } from '@/views/StatutoryViews';
 import { useToast } from '@/context/ToastContext';
 import { api, ApiError } from '@/lib/api/client';
 import { useApi } from '@/lib/api/hooks';
@@ -191,6 +192,10 @@ export function CitizenMyLand() {
                     <div><dt className="text-sm text-ink-muted">Recorded as</dt><dd className="font-semibold">{h.nameAsRecorded}</dd></div>
                     <div><dt className="text-sm text-ink-muted">Stage</dt><dd><StatusBadge status={p.stage} /></dd></div>
                   </dl>
+                  <h3 className="mt-4 font-bold">Dates the law guarantees you</h3>
+                  <div className="mt-1 text-base">
+                    <ParcelClocks parcelId={p.id} plain />
+                  </div>
                   <h3 className="mt-4 font-bold">Notices about your land</h3>
                   <ul className="mt-1 space-y-1">
                     {p.notices.map((n) => (

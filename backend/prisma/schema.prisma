@@ -729,3 +729,94 @@ model AnalyticsQuery {
   userRole  RoleName
   createdAt DateTime @default(now())
 }
+
+// ---------------------------------------------------------------------------
+// 6.1 Statutory rule engine: rules are data, versioned and cited.
+// ---------------------------------------------------------------------------
+
+enum RulePackStatus {
+  DRAFT
+  ACTIVE
+  RETIRED
+}
+
+/// A versioned set of statutory rules for one act, centrally or for one state,
+/// in force between effectiveFrom and effectiveTo. State packs override the
+/// central pack key by key; keys a state pack does not define are inherited.
+model RulePack {
+  id            String         @id @default(uuid())
+  code          String         @unique // e.g. IN-RFCTLARR-2013-v1, MH-RFCTLARR-2013-v1
+  actCode       String // RFCTLARR_2013
+  stateCode     String? // null = central (all states)
+  version       Int
+  title         String
+  source        String // where the text was verified, e.g. India Code (Act 30 of 2013)
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  status        RulePackStatus @default(DRAFT)
+  createdAt     DateTime       @default(now())
+
+  entries RuleEntry[]
+
+  @@index([actCode, stateCode, status])
+}
+
+/// One rule: a typed value with its legal citation and, where verified, the
+/// statutory text it comes from. `unverified` rules are flagged in the UI.
+model RuleEntry {
+  id         String   @id @default(uuid())
+  packId     String
+  pack       RulePack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  key        String // e.g. deadline.award.months, money.solatium.bp
+  category   String // DEADLINE, MONEY, DOCUMENT, PROCEDURE, ALERT
+  label      String
+  value      Json
+  unit       String?
+  citation   String
+  quote      String? // verbatim statutory text
+  unverified Boolean  @default(false)
+  note       String?
+
+  @@unique([packId, key])
+}
+
+enum ClockKind {
+  OBJECTION_WINDOW
+  DECLARATION_DEADLINE
+  AWARD_DEADLINE
+  PAYMENT_DEADLINE
+  RR_MONETARY_DEADLINE
+}
+
+enum ClockStatus {
+  RUNNING
+  MET
+  MISSED
+}
+
+/// A statutory clock on one parcel, derived from notices, awards and payments
+/// by StatutoryService. Recomputed whenever the parcel's events change.
+model StatutoryClock {
+  id           String      @id @default(uuid())
+  parcelId     String
+  projectId    String
+  districtCode String
+  stateCode    String
+  noticeId     String? // the notice that started the clock (groups parcels in the calendar)
+  kind         ClockKind
+  startsOn     DateTime
+  dueOn        DateTime
+  status       ClockStatus
+  metOn        DateTime?
+  excludedDays Int         @default(0) // court stay periods excluded from the count
+  ruleKey      String
+  packCode     String
+  citation     String
+  consequence  String
+  unverified   Boolean     @default(false)
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([parcelId, kind])
+  @@index([status, dueOn])
+  @@index([districtCode, status])
+}

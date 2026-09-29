@@ -15,6 +15,8 @@ export interface AwardRequest {
   parcelId: string;
   awardDate: Date;
   assetsValueRupees?: number;
+  override?: boolean;
+  reason?: string;
 }
 
 @Injectable()
@@ -43,23 +45,36 @@ export class AwardsService {
   private async compute(
     parcel: Prisma.ParcelGetPayload<{ include: { notices: true; holders: true } }>,
     req: AwardRequest,
-  ): Promise<{ breakdown: AwardBreakdown; packCode: string; unverified: string[]; sec11Date: Date }> {
-    const sec11 = parcel.notices.filter((n) => n.kind === NoticeKind.SEC_11_PRELIMINARY).sort((a, b) => +a.publishedOn - +b.publishedOn)[0];
-    if (!sec11) throw new BadRequestException('Parcel has no s.11 preliminary notification; the additional amount cannot be computed');
+  ): Promise<{ breakdown: AwardBreakdown; packCode: string; packs: string[]; unverified: string[]; additionalFrom: Date; additionalFromEvent: string }> {
     if (!parcel.marketRatePaisePerHa) throw new BadRequestException('Parcel has no market rate recorded (s.26)');
+    const earliest = (kind: NoticeKind) => parcel.notices.filter((n) => n.kind === kind).sort((a, b) => +a.publishedOn - +b.publishedOn)[0];
+    const sec11 = earliest(NoticeKind.SEC_11_PRELIMINARY);
+    if (!sec11) throw new BadRequestException('Parcel has no s.11 preliminary notification');
 
-    const { rules, packCode, unverified } = await this.rules.awardRules(parcel, sec11.publishedOn);
+    // Rules in force on the award date decide the money.
+    const res = await this.rules.awardRules(parcel, req.awardDate);
+    const unverified = [...res.unverified];
+    // s.30(3): the additional amount runs from the s.4(2) SIA notification.
+    const startNotice = res.additionalStartEvent === 'SEC_4_SIA' ? earliest(NoticeKind.SEC_4_SIA) : earliest(res.additionalStartEvent as NoticeKind);
+    let additionalFrom = startNotice?.publishedOn;
+    let additionalFromEvent = res.additionalStartEvent;
+    if (!additionalFrom) {
+      additionalFrom = sec11.publishedOn;
+      additionalFromEvent = 'SEC_11_PRELIMINARY';
+      unverified.push('Additional amount start date: no s.4(2) SIA notification on record, s.11 date used (e.g. SIA exemption)');
+    }
+
     const breakdown = calculateAward(
       {
         areaHa: parcel.totalAreaHa,
         marketRatePaisePerHa: parcel.marketRatePaisePerHa,
         assetsValuePaise: rupeesToPaise(req.assetsValueRupees ?? 0),
-        sec11Date: sec11.publishedOn,
+        additionalFrom,
         cutoffDate: req.awardDate,
       },
-      rules,
+      res.rules,
     );
-    return { breakdown, packCode, unverified, sec11Date: sec11.publishedOn };
+    return { breakdown, packCode: res.packCode, packs: res.packs, unverified, additionalFrom, additionalFromEvent };
   }
 
   /**
@@ -74,8 +89,9 @@ export class AwardsService {
     });
     if (!parcel) throw new NotFoundException('Parcel not found');
     if (parcel.holders.length === 0) throw new BadRequestException('Parcel has no recorded holders to compensate');
+    if (req.override && (req.reason?.trim().length ?? 0) < 20) throw new BadRequestException('An override needs a reason of at least 20 characters (e.g. the extension order reference)');
 
-    const { breakdown, packCode, unverified, sec11Date } = await this.compute(parcel, req);
+    const { breakdown, packCode, packs, unverified, additionalFrom, additionalFromEvent } = await this.compute(parcel, req);
     const shares = splitByShare(
       breakdown.totalPaise,
       parcel.holders.map((h) => ({ sharePct: h.sharePct, personId: h.personId, name: h.nameAsRecorded })),
@@ -96,7 +112,7 @@ export class AwardsService {
             solatiumPaise: breakdown.solatiumPaise,
             additionalAmountPaise: breakdown.additionalAmountPaise,
             totalPaise: breakdown.totalPaise,
-            calculation: JSON.parse(canonicalJson({ ...breakdown, packCode, unverified, sec11Date })) as Prisma.InputJsonValue,
+            calculation: JSON.parse(canonicalJson({ ...breakdown, packCode, packs, unverified, additionalFrom, additionalFromEvent })) as Prisma.InputJsonValue,
           },
         });
         for (const s of shares) {
@@ -118,7 +134,8 @@ export class AwardsService {
           event: 'DECLARE_AWARD',
           actor: user,
           fromDomainService: true,
-          reason: `Award ${award.awardNumber}`,
+          override: req.override,
+          reason: req.reason ?? `Award ${award.awardNumber}`,
           context: { awardId: award.id, awardNumber: award.awardNumber, totalPaise: award.totalPaise },
         });
         return award;
