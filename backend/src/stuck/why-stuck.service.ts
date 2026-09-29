@@ -506,7 +506,9 @@ export class WhyStuckService {
 
   private async owners() {
     const users = await this.prisma.user.findMany({ where: { active: true, role: { in: [RoleName.DISTRICT_OFFICER, RoleName.FINANCE_OFFICER, RoleName.RR_OFFICER, RoleName.STATE_ADMIN] } }, include: { jurisdiction: true } });
-    return users.map((u) => ({ role: u.role, name: `${u.name}${u.designation ? `, ${u.designation}` : ''}`, districtCode: u.jurisdiction?.level === 'DISTRICT' ? u.jurisdiction.code : null, stateCode: u.jurisdiction?.stateCode ?? null }));
+    // "Collector, Bikaner" with designation "Collector, Bikaner (synthetic)" reads once, not twice.
+    const label = (name: string, designation: string | null) => (!designation ? name : designation.startsWith(name) ? designation : `${name}, ${designation}`);
+    return users.map((u) => ({ role: u.role, name: label(u.name, u.designation), districtCode: u.jurisdiction?.level === 'DISTRICT' ? u.jurisdiction.code : null, stateCode: u.jurisdiction?.stateCode ?? null }));
   }
 
   private async latestDecisions(keys: string[]) {

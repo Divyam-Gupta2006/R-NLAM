@@ -1,7 +1,7 @@
 'use client';
 
-import { DashboardView } from '@/views/DashboardView';
+import { CommandView } from '@/views/CommandView';
 
 export default function Page() {
-  return <DashboardView eyebrow="National Command" title="National acquisition dashboard" breakdown="state" />;
+  return <CommandView />;
 }

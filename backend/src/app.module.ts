@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AiModule } from './ai/ai.module';
+import { CommandModule } from './command/command.module';
 import { CourtModule } from './court/court.module';
 import { FieldModule } from './field/field.module';
 import { AnalyticsModule } from './analytics/analytics.module';
@@ -65,6 +66,7 @@ import { UsersModule } from './users/users.module';
     DocumentsModule,
     AiModule,
     CourtModule,
+    CommandModule,
     FieldModule,
     GisModule,
     AnalyticsModule,
