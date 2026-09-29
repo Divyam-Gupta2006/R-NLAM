@@ -612,7 +612,8 @@ model Document {
   isSynthetic    Boolean      @default(true)
   createdAt      DateTime     @default(now())
 
-  versions DocumentVersion[]
+  versions    DocumentVersion[]
+  extractions DocumentExtraction[]
 
   @@index([parcelId, kind])
 }
@@ -948,4 +949,34 @@ model MerkleRoot {
   sealedAt    DateTime @default(now())
 
   @@index([fromSeq, toSeq])
+}
+
+enum ExtractionStatus {
+  PENDING_REVIEW
+  CONFIRMED
+  REJECTED
+}
+
+/// Fields proposed by the AI service for a document (6.8). Proposals only:
+/// nothing is used until a person confirms or corrects them.
+model DocumentExtraction {
+  id                     String           @id @default(uuid())
+  documentId             String
+  document               Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentSha256         String // the file version the fields were read from
+  textMethod             String // pdf-text-layer | plain-text | tesseract
+  documentType           String
+  documentTypeConfidence Float
+  proposed               Json // { field: [{ value, confidence, evidence, needs_review }] }
+  needsReview            Boolean
+  status                 ExtractionStatus @default(PENDING_REVIEW)
+  confirmed              Json? // { field: value[] } as accepted or corrected by a person
+  corrections            Int? // number of fields changed by the reviewer
+  reviewNote             String?
+  requestedById          String?
+  reviewedById           String?
+  reviewedAt             DateTime?
+  createdAt              DateTime         @default(now())
+
+  @@index([documentId, createdAt])
 }
