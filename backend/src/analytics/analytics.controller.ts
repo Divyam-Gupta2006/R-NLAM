@@ -1,35 +1,32 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { AuthUser, R } from '../auth/auth.types';
+import { CurrentUser, Roles } from '../auth/decorators';
 import { AnalyticsService } from './analytics.service';
-import { RoleName } from '@prisma/client';
-import { RolesGuard } from '../auth/roles.guard';
 
+@ApiTags('analytics')
+@ApiBearerAuth()
+@Roles(...R.OFFICIALS)
 @Controller('analytics')
-@UseGuards(RolesGuard)
 export class AnalyticsController {
-  constructor(private readonly analyticsService: AnalyticsService) {}
+  constructor(private readonly analytics: AnalyticsService) {}
 
   @Get('kpis')
-  async getDashboardKpis() {
-    return this.analyticsService.getDashboardKpis();
-  }
-
-  @Get('project/:id')
-  async getProjectAnalytics(@Param('id') id: string) {
-    return this.analyticsService.getProjectAnalytics(id);
+  @ApiOperation({ summary: 'Headline KPIs and the stage funnel for the caller’s jurisdiction' })
+  kpis(@CurrentUser() user: AuthUser) {
+    return this.analytics.kpis(user);
   }
 
   @Get('states')
-  async getStatesAnalytics() {
-    return this.analyticsService.getStatesAnalytics();
+  @ApiOperation({ summary: 'Progress by state' })
+  states(@CurrentUser() user: AuthUser) {
+    return this.analytics.breakdown(user, 'state');
   }
 
   @Get('districts')
-  async getDistrictsAnalytics(@Query('stateCode') stateCode?: string) {
-    return this.analyticsService.getDistrictsAnalytics(stateCode);
-  }
-
-  @Post('record-query')
-  async recordQuery(@Body() body: { question: string; sqlQuery: string; userRole: RoleName }) {
-    return this.analyticsService.recordAnalyticsQuery(body.question, body.sqlQuery, body.userRole);
+  @ApiQuery({ name: 'stateCode', required: false })
+  @ApiOperation({ summary: 'Progress by district' })
+  districts(@CurrentUser() user: AuthUser, @Query('stateCode') stateCode?: string) {
+    return this.analytics.breakdown(user, 'district', stateCode);
   }
 }

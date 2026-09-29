@@ -1,10 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PossessionService } from './possession.service';
 import { PossessionController } from './possession.controller';
 
-@Module({
-  controllers: [PossessionController],
-  providers: [PossessionService],
-  exports: [PossessionService],
-})
+@Module({ controllers: [PossessionController] })
 export class PossessionModule {}

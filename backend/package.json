@@ -10,15 +10,17 @@
     "start:dev": "npm run db:start && ts-node-dev --respawn --transpile-only -r dotenv/config src/main.ts",
     "start:prod": "node dist/main.js",
     "prisma:generate": "prisma generate",
-    "prisma:db:push": "prisma db push",
-    "prisma:seed": "ts-node -r dotenv/config prisma/seed.ts",
-    "seed": "ts-node -r dotenv/config prisma/seed-demo.ts",
-    "seed:demo": "ts-node -r dotenv/config prisma/seed-demo.ts",
-    "seed:demo:reset": "ts-node -r dotenv/config scripts/reset-demo.ts",
-    "validate:demo": "ts-node -r dotenv/config scripts/validate-demo.ts",
+    "seed:demo": "ts-node -r dotenv/config prisma/seed.ts",
     "db:start": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/db-start.ps1",
     "db:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/db-stop.ps1",
-    "db:status": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/db-status.ps1"
+    "db:status": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/db-status.ps1",
+    "db:migrate": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset --force --skip-seed && npm run seed:demo",
+    "test": "jest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:unit": "jest",
+    "test:e2e": "jest --config test/jest-e2e.json --runInBand",
+    "openapi": "ts-node -r dotenv/config scripts/export-openapi.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",
@@ -37,12 +39,35 @@
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
+    "@nestjs/testing": "^10.4.22",
     "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.3.0",
     "@types/node": "^20.11.0",
+    "@types/supertest": "^7.2.1",
+    "jest": "^29.7.0",
     "prisma": "^5.10.0",
+    "supertest": "^7.3.0",
+    "ts-jest": "^29.4.14",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3"
+  },
+  "prisma": {
+    "seed": "ts-node -r dotenv/config prisma/seed.ts"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*.spec.ts$",
+    "transform": {
+      "^.+.ts$": "ts-jest"
+    },
+    "testEnvironment": "node"
   }
 }

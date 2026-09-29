@@ -1,0 +1,2369 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/auth/mode": {
+      "get": {
+        "operationId": "AuthController_mode",
+        "summary": "Which auth mode the server runs in (dev or keycloak)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/personas": {
+      "get": {
+        "operationId": "AuthController_personas",
+        "summary": "DEV ONLY: demo users for the role switcher",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/dev-login": {
+      "post": {
+        "operationId": "AuthController_devLogin",
+        "summary": "DEV ONLY: issue a signed JWT for a demo user",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/citizen/otp": {
+      "post": {
+        "operationId": "AuthController_requestOtp",
+        "summary": "Citizen login step 1: request an OTP",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/citizen/verify": {
+      "post": {
+        "operationId": "AuthController_verifyOtp",
+        "summary": "Citizen login step 2: verify the OTP and receive a token",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpVerifyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "operationId": "AuthController_me",
+        "summary": "The authenticated caller",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/audit": {
+      "get": {
+        "operationId": "AuditController_list",
+        "summary": "Audit entries, newest first",
+        "parameters": [
+          {
+            "name": "entityType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "highlighted",
+            "required": false,
+            "in": "query",
+            "description": "true = overrides and other highlighted entries only",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "audit"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/audit/verify": {
+      "get": {
+        "operationId": "AuditController_verify",
+        "summary": "Recompute every hash in the chain and report the first break, if any",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "audit"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/events": {
+      "get": {
+        "operationId": "EventsController_list",
+        "summary": "Outbox events, newest first (the digital thread feed)",
+        "parameters": [
+          {
+            "name": "aggregateType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "aggregateId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "events"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/events/stats": {
+      "get": {
+        "operationId": "EventsController_stats",
+        "summary": "Outbox health: pending, failed and delivered counts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "events"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/lifecycle/definitions": {
+      "get": {
+        "operationId": "LifecycleController_definitions",
+        "summary": "Every state machine: states, transitions, roles and guards",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "lifecycle"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/lifecycle/{entityType}/{id}": {
+      "get": {
+        "operationId": "LifecycleController_inspect",
+        "summary": "Current state, available transitions with their blockers, and history",
+        "parameters": [
+          {
+            "name": "entityType",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "lifecycle"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/lifecycle/{entityType}/{id}/transitions": {
+      "post": {
+        "operationId": "LifecycleController_fire",
+        "summary": "Fire a transition. 409 with `blockers` if a guard stops it; senior officers may override overridable blockers with a reason.",
+        "parameters": [
+          {
+            "name": "entityType",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "lifecycle"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "operationId": "NotificationsController_list",
+        "summary": "Notifications for me or my role in my jurisdiction",
+        "parameters": [
+          {
+            "name": "unread",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "notifications"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/notifications/{id}/read": {
+      "patch": {
+        "operationId": "NotificationsController_markRead",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "notifications"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/system/health": {
+      "get": {
+        "operationId": "SystemController_health",
+        "summary": "Liveness plus database/PostGIS check and active adapter modes",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/projects": {
+      "get": {
+        "operationId": "ProjectsController_list",
+        "summary": "Projects in the caller’s jurisdiction, with parcel counts by stage",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "DRAFT",
+                "SUBMITTED",
+                "UNDER_SCRUTINY",
+                "APPROVED",
+                "ACTIVE",
+                "ON_HOLD",
+                "COMPLETED",
+                "CLOSED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "stateCode",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "projects"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "ProjectsController_create",
+        "summary": "Create a project (draft)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "projects"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/projects/{id}": {
+      "get": {
+        "operationId": "ProjectsController_get",
+        "summary": "Project detail: stage breakdown, notices, compensation totals",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "projects"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/proposals": {
+      "get": {
+        "operationId": "ProposalsController_list",
+        "summary": "Acquisition proposals in the caller’s jurisdiction",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "proposals"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "ProposalsController_create",
+        "summary": "Create a draft proposal",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProposalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "proposals"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/proposals/{id}": {
+      "get": {
+        "operationId": "ProposalsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "proposals"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/parcels": {
+      "get": {
+        "operationId": "ParcelsController_list",
+        "summary": "Parcels in the caller’s jurisdiction (paged)",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "IDENTIFIED",
+                "PRELIM_NOTIFIED",
+                "DECLARED",
+                "AWARDED",
+                "COMPENSATION_PAID",
+                "POSSESSION_TAKEN",
+                "HANDED_OVER",
+                "LAPSED",
+                "WITHDRAWN"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "districtCode",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "villageId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "survey no., parcel no., owner or village",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "parcels"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "ParcelsController_create",
+        "summary": "Register a parcel (GeoJSON geometry is synced into PostGIS by trigger)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateParcelDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "parcels"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/parcels/{id}": {
+      "get": {
+        "operationId": "ParcelsController_get",
+        "summary": "Everything about one parcel: holders, notices, objections, award, payments, R&R, possession, documents, history",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "parcels"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/notices": {
+      "get": {
+        "operationId": "NoticesController_list",
+        "summary": "Statutory notices (gazette notifications)",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "notices"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "NoticesController_publish",
+        "summary": "Publish a notice for a set of parcels. s.11 moves them to PRELIM_NOTIFIED, s.19 to DECLARED. Blocked parcels are left out and reported.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishNoticeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "notices"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/objections": {
+      "get": {
+        "operationId": "ObjectionsController_list",
+        "summary": "s.15 objections in the caller’s jurisdiction, with hearings",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "SUBMITTED",
+                "UNDER_REVIEW",
+                "HEARING_SCHEDULED",
+                "RESOLVED",
+                "REJECTED",
+                "ESCALATED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "parcelId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "objections"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "ObjectionsController_file",
+        "summary": "File an objection under s.15 (citizens: only for parcels they hold)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileObjectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "objections"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/objections/{id}/hearings": {
+      "post": {
+        "operationId": "ObjectionsController_scheduleHearing",
+        "summary": "Schedule a hearing (moves the objection to HEARING_SCHEDULED)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleHearingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "objections"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/objections/hearings/{hearingId}/outcome": {
+      "post": {
+        "operationId": "ObjectionsController_recordOutcome",
+        "summary": "Record that a hearing was held (with outcome notes) or adjourned",
+        "parameters": [
+          {
+            "name": "hearingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HearingOutcomeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "objections"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/awards": {
+      "get": {
+        "operationId": "AwardsController_list",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "awards"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AwardsController_declare",
+        "summary": "Declare the award (s.23): creates the award and per-holder compensation, moves the parcel to AWARDED",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AwardDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "awards"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/awards/preview": {
+      "post": {
+        "operationId": "AwardsController_preview",
+        "summary": "Compute an award line by line (market value, multiplier, solatium, additional amount) without saving",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AwardDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "awards"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/compensation": {
+      "get": {
+        "operationId": "CompensationController_list",
+        "summary": "Compensation lines with payment references and totals by status",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "parcelId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "ASSESSED",
+                "APPROVED",
+                "INITIATED",
+                "PAID",
+                "FAILED",
+                "DISPUTED",
+                "ON_HOLD"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "compensation"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/compensation/{id}/pay": {
+      "post": {
+        "operationId": "CompensationController_pay",
+        "summary": "Disburse an approved compensation through the payment gateway (synthetic PFMS in dev)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "compensation"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/rr/entitlements": {
+      "get": {
+        "operationId": "RRController_entitlements",
+        "summary": "Catalogue of R&R entitlements (Second Schedule)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "rr"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/rr/families": {
+      "get": {
+        "operationId": "RRController_families",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "rr"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/rr/cases": {
+      "get": {
+        "operationId": "RRController_cases",
+        "summary": "R&R cases with family and entitlement grants",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "IDENTIFIED",
+                "ELIGIBILITY_VERIFIED",
+                "PLAN_CREATED",
+                "BENEFIT_ASSIGNED",
+                "BENEFIT_DELIVERED",
+                "COMPLETED"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "rr"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/rr/cases/{id}/grants": {
+      "post": {
+        "operationId": "RRController_assign",
+        "summary": "Assign entitlements to a family (PLAN_CREATED → BENEFIT_ASSIGNED)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignGrantsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "rr"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/rr/grants/{id}/deliver": {
+      "post": {
+        "operationId": "RRController_deliver",
+        "summary": "Record delivery of one entitlement to the family",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeliverDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "rr"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/possession": {
+      "get": {
+        "operationId": "PossessionController_list",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "ELIGIBLE",
+                "SCHEDULED",
+                "POSSESSION_TAKEN",
+                "HANDED_TO_PIA"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "possession"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/possession/{parcelId}/take": {
+      "post": {
+        "operationId": "PossessionController_take",
+        "summary": "Take possession of a parcel (s.38). 409 with blockers if payment, R&R or consent is incomplete.",
+        "parameters": [
+          {
+            "name": "parcelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TakePossessionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "possession"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/possession/{parcelId}/handover": {
+      "post": {
+        "operationId": "PossessionController_handover",
+        "summary": "Hand the parcel over to the requiring body",
+        "parameters": [
+          {
+            "name": "parcelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "possession"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/documents": {
+      "get": {
+        "operationId": "DocumentsController_list",
+        "parameters": [
+          {
+            "name": "parcelId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "GAZETTE_NOTIFICATION",
+                "AWARD_COPY",
+                "KHASRA_EXTRACT",
+                "SIA_REPORT",
+                "GRAM_SABHA_CONSENT",
+                "FRA_SETTLEMENT_CERTIFICATE",
+                "FOREST_CLEARANCE",
+                "CRZ_CLEARANCE",
+                "WILDLIFE_CLEARANCE",
+                "POSSESSION_CERTIFICATE",
+                "PAYMENT_ADVICE",
+                "COURT_ORDER",
+                "FIELD_PHOTO",
+                "OTHER"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "DocumentsController_upload",
+        "summary": "Upload a document (PDF/PNG/JPEG/WebP, ≤ 10 MB). Stored with its SHA-256.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "parcelId": {
+                    "type": "string"
+                  },
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "referenceNo": {
+                    "type": "string"
+                  },
+                  "issuedOn": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/documents/{id}/download": {
+      "get": {
+        "operationId": "DocumentsController_download",
+        "summary": "Download a document (integrity-checked against its stored SHA-256)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/gis/parcels": {
+      "get": {
+        "operationId": "GisController_parcels",
+        "summary": "Parcels as a GeoJSON FeatureCollection (EPSG:4326) with stage and area",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "gis"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/gis/stats": {
+      "get": {
+        "operationId": "GisController_stats",
+        "summary": "Spatial totals computed by PostGIS (true ellipsoidal area)",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "gis"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/kpis": {
+      "get": {
+        "operationId": "AnalyticsController_kpis",
+        "summary": "Headline KPIs and the stage funnel for the caller’s jurisdiction",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "analytics"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/states": {
+      "get": {
+        "operationId": "AnalyticsController_states",
+        "summary": "Progress by state",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "analytics"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/districts": {
+      "get": {
+        "operationId": "AnalyticsController_districts",
+        "summary": "Progress by district",
+        "parameters": [
+          {
+            "name": "stateCode",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "analytics"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/sla/tasks": {
+      "get": {
+        "operationId": "SlaController_tasks",
+        "summary": "Administrative SLA tasks with live breach status",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sla"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/users": {
+      "get": {
+        "operationId": "UsersController_list",
+        "summary": "Officers and their jurisdictions",
+        "parameters": [
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "CENTRAL_ADMIN",
+                "CENTRAL_OFFICER",
+                "STATE_ADMIN",
+                "STATE_OFFICER",
+                "DISTRICT_OFFICER",
+                "PIA_OFFICER",
+                "FIELD_OFFICER",
+                "RR_OFFICER",
+                "FINANCE_OFFICER",
+                "GIS_OFFICER",
+                "CITIZEN"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/jurisdictions": {
+      "get": {
+        "operationId": "JurisdictionsController_list",
+        "parameters": [
+          {
+            "name": "level",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "NATION",
+                "STATE",
+                "DISTRICT",
+                "TEHSIL",
+                "VILLAGE"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "parentId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stateCode",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "jurisdictions"
+        ]
+      }
+    },
+    "/api/integrations/status": {
+      "get": {
+        "operationId": "IntegrationsController_status",
+        "summary": "Adapters, their mode (SYNTHETIC / LIVE) and what they would connect to",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/integrations/land-records/{villageCode}/{surveyNo}": {
+      "get": {
+        "operationId": "IntegrationsController_landRecord",
+        "summary": "SYNTHETIC land-record lookup by village and survey number",
+        "parameters": [
+          {
+            "name": "villageCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "surveyNo",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/citizen/projects": {
+      "get": {
+        "operationId": "CitizenController_projects",
+        "summary": "Public list of acquisition projects (no personal data)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "citizen"
+        ]
+      }
+    },
+    "/api/citizen/me": {
+      "get": {
+        "operationId": "CitizenController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "citizen"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "R-NLAM API",
+    "description": "Real-Time National Land Acquisition & Management System. All routes need a Bearer token unless marked public. In AUTH_MODE=dev, get one from POST /api/auth/dev-login. Money is integer paise; dates are UTC.",
+    "version": "2.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "DevLoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "collector.nagpur@demo.rnlam.in"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "OtpRequestDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "example": "9800000001",
+            "description": "10-digit Indian mobile number"
+          }
+        },
+        "required": [
+          "phone"
+        ]
+      },
+      "OtpVerifyDto": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "example": "123456"
+          }
+        },
+        "required": [
+          "requestId",
+          "code"
+        ]
+      },
+      "TransitionDto": {
+        "type": "object",
+        "properties": {
+          "event": {
+            "type": "string",
+            "example": "COMPLETE_PAYMENT"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Required (≥ 20 chars) when overriding a blocker"
+          },
+          "override": {
+            "type": "boolean",
+            "description": "Senior officers only: proceed despite overridable blockers"
+          }
+        },
+        "required": [
+          "event"
+        ]
+      },
+      "CreateProjectDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "NH-753J-MH"
+          },
+          "name": {
+            "type": "string",
+            "example": "Wardha–Yavatmal 4-lane Highway"
+          },
+          "sector": {
+            "type": "string",
+            "example": "Roads"
+          },
+          "description": {
+            "type": "string"
+          },
+          "stateCode": {
+            "type": "string",
+            "example": "MH"
+          },
+          "stateName": {
+            "type": "string",
+            "example": "Maharashtra"
+          },
+          "districtCodes": {
+            "example": [
+              "MH-WRD"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "districtNames": {
+            "example": [
+              "Wardha"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "piaName": {
+            "type": "string",
+            "example": "National Highways Authority of India"
+          },
+          "requiredAreaHa": {
+            "type": "number",
+            "example": 182.5
+          },
+          "estimatedCostRupees": {
+            "type": "number",
+            "example": 4200000000,
+            "description": "Rupees (converted to paise server-side)"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "sector",
+          "stateCode",
+          "stateName",
+          "districtCodes",
+          "districtNames",
+          "piaName",
+          "requiredAreaHa",
+          "estimatedCostRupees"
+        ]
+      },
+      "CreateProposalDto": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "landRequiredHa": {
+            "type": "number",
+            "example": 42.5
+          },
+          "remarks": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectId",
+          "title",
+          "landRequiredHa"
+        ]
+      },
+      "GeoJsonPolygonDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "Polygon",
+              "MultiPolygon"
+            ]
+          },
+          "coordinates": {
+            "description": "GeoJSON coordinates, EPSG:4326 (lng, lat)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "type",
+          "coordinates"
+        ]
+      },
+      "CreateParcelDto": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "parcelNumber": {
+            "type": "string",
+            "example": "WRD-SLD-0142"
+          },
+          "surveyNumber": {
+            "type": "string",
+            "example": "142/2"
+          },
+          "ulpin": {
+            "type": "string",
+            "example": "27123456789012"
+          },
+          "villageId": {
+            "type": "string"
+          },
+          "totalAreaHa": {
+            "type": "number",
+            "example": 1.25
+          },
+          "landClass": {
+            "type": "string",
+            "example": "Agricultural (irrigated)"
+          },
+          "displayOwnerName": {
+            "type": "string",
+            "example": "Ramesh Patil"
+          },
+          "isRural": {
+            "type": "boolean"
+          },
+          "distanceFromUrbanKm": {
+            "type": "number",
+            "example": 18
+          },
+          "marketRateRupeesPerHa": {
+            "type": "number",
+            "example": 850000,
+            "description": "Rupees per hectare"
+          },
+          "geometry": {
+            "$ref": "#/components/schemas/GeoJsonPolygonDto"
+          }
+        },
+        "required": [
+          "projectId",
+          "parcelNumber",
+          "surveyNumber",
+          "villageId",
+          "totalAreaHa",
+          "landClass",
+          "displayOwnerName"
+        ]
+      },
+      "PublishNoticeDto": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "SEC_11_PRELIMINARY",
+              "SEC_19_DECLARATION",
+              "SEC_21_NOTICE"
+            ]
+          },
+          "referenceNo": {
+            "type": "string",
+            "example": "LAQ/WRD/11/2026/07"
+          },
+          "gazetteRef": {
+            "type": "string",
+            "example": "Maharashtra Govt Gazette Part IV-B, 14 Jan 2026"
+          },
+          "publishedOn": {
+            "type": "string",
+            "example": "2026-01-14"
+          },
+          "parcelIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "projectId",
+          "kind",
+          "referenceNo",
+          "publishedOn",
+          "parcelIds"
+        ]
+      },
+      "FileObjectionDto": {
+        "type": "object",
+        "properties": {
+          "parcelId": {
+            "type": "string"
+          },
+          "applicant": {
+            "type": "string",
+            "example": "Ramesh Patil"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "COMPENSATION_AMOUNT",
+              "MEASUREMENT",
+              "TITLE",
+              "PUBLIC_PURPOSE",
+              "RR_ENTITLEMENT",
+              "OTHER"
+            ]
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "parcelId",
+          "applicant",
+          "category",
+          "description"
+        ]
+      },
+      "ScheduleHearingDto": {
+        "type": "object",
+        "properties": {
+          "scheduledAt": {
+            "type": "string",
+            "example": "2026-11-05T11:00:00+05:30"
+          },
+          "venue": {
+            "type": "string",
+            "example": "Collectorate Hall 2, Wardha"
+          },
+          "presidingOfficer": {
+            "type": "string",
+            "example": "Dy. Collector (LA), Wardha"
+          }
+        },
+        "required": [
+          "scheduledAt",
+          "venue",
+          "presidingOfficer"
+        ]
+      },
+      "HearingOutcomeDto": {
+        "type": "object",
+        "properties": {
+          "held": {
+            "type": "boolean",
+            "description": "true = hearing held; false = adjourned"
+          },
+          "outcome": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "held"
+        ]
+      },
+      "AwardDto": {
+        "type": "object",
+        "properties": {
+          "parcelId": {
+            "type": "string"
+          },
+          "awardDate": {
+            "type": "string",
+            "example": "2026-09-30"
+          },
+          "assetsValueRupees": {
+            "type": "number",
+            "example": 250000,
+            "description": "Value of trees, wells, structures (rupees), s.29"
+          }
+        },
+        "required": [
+          "parcelId",
+          "awardDate"
+        ]
+      },
+      "AssignGrantsDto": {
+        "type": "object",
+        "properties": {
+          "entitlementCodes": {
+            "example": [
+              "HOUSE_RURAL",
+              "SUBSISTENCE_GRANT"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "entitlementCodes"
+        ]
+      },
+      "DeliverDto": {
+        "type": "object",
+        "properties": {
+          "remarks": {
+            "type": "string"
+          }
+        }
+      },
+      "TakePossessionDto": {
+        "type": "object",
+        "properties": {
+          "takenOn": {
+            "type": "string",
+            "example": "2026-10-20"
+          },
+          "latitude": {
+            "type": "number"
+          },
+          "longitude": {
+            "type": "number"
+          },
+          "remarks": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

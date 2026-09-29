@@ -1,14 +1,24 @@
-// Prisma Schema for R-NLAM (Real-Time National Land Acquisition & Management System)
+// R-NLAM (Real-Time National Land Acquisition & Management System)
+//
+// Conventions
+// - Money: BigInt paise (1 rupee = 100 paise). Never Float.
+// - Time: DateTime columns are UTC; the UI renders IST.
+// - Geometry: `Parcel.geometry` (GeoJSON, what the API speaks) is the source of
+//   truth; a trigger keeps the PostGIS column `geom` (not visible to Prisma) and
+//   `areaSqm` in sync. Spatial queries use raw SQL against `geom`.
+// - PostGIS/pg_trgm/fuzzystrmatch live in schema `extensions` (see scripts/db-setup.ps1).
+//   Prisma pins search_path to "public" per connection, so raw SQL must qualify
+//   them: extensions.ST_Intersects(...), ::extensions.geography.
+// - Every lifecycle change goes through LifecycleService, which writes
+//   StateTransition + AuditEvent + OutboxEvent in one transaction.
 
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["postgresqlExtensions"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider   = "postgresql"
-  url        = env("DATABASE_URL")
-  extensions = [postgis]
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum RoleName {
@@ -23,6 +33,14 @@ enum RoleName {
   FINANCE_OFFICER
   GIS_OFFICER
   CITIZEN
+}
+
+enum JurisdictionLevel {
+  NATION
+  STATE
+  DISTRICT
+  TEHSIL
+  VILLAGE
 }
 
 enum ProjectStatus {
@@ -41,23 +59,23 @@ enum ProposalStatus {
   SUBMITTED
   UNDER_SCRUTINY
   QUERY_RAISED
-  CORRECTION_REQUIRED
   APPROVED
   REJECTED
   WITHDRAWN
 }
 
-enum ParcelStatus {
-  PROPOSED
-  VERIFICATION_PENDING
-  VERIFIED
-  NOTIFIED
+/// Parcel lifecycle under RFCTLARR 2013. Holds (GIS gate, stay orders, open
+/// objections) are guards on transitions, not stages.
+enum ParcelStage {
+  IDENTIFIED
+  PRELIM_NOTIFIED
+  DECLARED
   AWARDED
-  COMPENSATION_PENDING
   COMPENSATION_PAID
-  DISPUTED
   POSSESSION_TAKEN
-  HANDED_TO_PIA
+  HANDED_OVER
+  LAPSED
+  WITHDRAWN
 }
 
 enum VerificationStatus {
@@ -68,11 +86,41 @@ enum VerificationStatus {
   DISPUTED
 }
 
+enum NoticeKind {
+  SEC_4_SIA
+  SEC_11_PRELIMINARY
+  SEC_19_DECLARATION
+  SEC_21_NOTICE
+  SEC_23_AWARD
+}
+
+enum ObjectionStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  HEARING_SCHEDULED
+  RESOLVED
+  REJECTED
+  ESCALATED
+}
+
+enum HearingStatus {
+  SCHEDULED
+  HELD
+  ADJOURNED
+  CANCELLED
+}
+
+enum AwardStatus {
+  DRAFT
+  DECLARED
+  REVISED
+  CHALLENGED
+}
+
 enum CompensationStatus {
   ASSESSED
   APPROVED
   INITIATED
-  PROCESSING
   PAID
   FAILED
   DISPUTED
@@ -88,6 +136,12 @@ enum RRStatus {
   COMPLETED
 }
 
+enum EntitlementStatus {
+  ASSIGNED
+  DELIVERED
+  WAIVED
+}
+
 enum PossessionStatus {
   ELIGIBLE
   SCHEDULED
@@ -95,45 +149,54 @@ enum PossessionStatus {
   HANDED_TO_PIA
 }
 
-enum ObjectionStatus {
-  SUBMITTED
-  UNDER_REVIEW
-  HEARING_SCHEDULED
-  HEARD
-  RESOLVED
-  ESCALATED
-  CLOSED
-}
-
-enum MilestoneStatus {
-  UPCOMING
-  DUE_SOON
-  OVERDUE
-  COMPLETED
+enum DocumentKind {
+  GAZETTE_NOTIFICATION
+  AWARD_COPY
+  KHASRA_EXTRACT
+  SIA_REPORT
+  GRAM_SABHA_CONSENT
+  FRA_SETTLEMENT_CERTIFICATE
+  FOREST_CLEARANCE
+  CRZ_CLEARANCE
+  WILDLIFE_CLEARANCE
+  POSSESSION_CERTIFICATE
+  PAYMENT_ADVICE
+  COURT_ORDER
+  FIELD_PHOTO
+  OTHER
 }
 
 model Organization {
-  id        String   @id @default(uuid())
-  code      String   @unique
+  id        String    @id @default(uuid())
+  code      String    @unique
   name      String
-  type      String
+  type      String // PIA, CALA, STATE_DEPT, CENTRAL_DEPT
   stateCode String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   users     User[]
+  projects  Project[]
 }
 
+/// Administrative hierarchy used for scoping and liability roll-ups.
+/// Codes follow LGD style but are synthetic in the demo dataset.
 model Jurisdiction {
-  id           String   @id @default(uuid())
-  stateCode    String
-  stateName    String
-  districtCode String?
-  districtName String?
-  subdistrict  String?
-  villageCode  String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  users        User[]
+  id        String            @id @default(uuid())
+  level     JurisdictionLevel
+  code      String            @unique
+  name      String
+  nameLocal String?
+  parentId  String?
+  parent    Jurisdiction?     @relation("JurisdictionTree", fields: [parentId], references: [id])
+  children  Jurisdiction[]    @relation("JurisdictionTree")
+  stateCode String
+  createdAt DateTime          @default(now())
+
+  users   User[]
+  parcels Parcel[]
+
+  @@index([parentId])
+  @@index([stateCode, level])
 }
 
 model User {
@@ -142,123 +205,121 @@ model User {
   name           String
   phone          String?
   role           RoleName      @default(CITIZEN)
+  designation    String?
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
   jurisdictionId String?
   jurisdiction   Jurisdiction? @relation(fields: [jurisdictionId], references: [id])
+  personId       String?       @unique
+  person         Person?       @relation(fields: [personId], references: [id])
+  active         Boolean       @default(true)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  actions            WorkflowAction[]
-  audits             AuditEvent[]
-  fieldVerifications ParcelVerification[]
+  transitions StateTransition[]
+  audits      AuditEvent[]
 }
 
 model Project {
-  id            String        @id @default(uuid())
-  code          String        @unique
-  name          String
-  sector        String // Roads, Railways, Energy, Urban
-  stateCode     String
-  stateName     String
-  districtCodes String[]
-  districtNames String[]
-  piaName       String
-  requiredLand  Float // in hectares
-  acquiredLand  Float         @default(0)
-  possessedLand Float         @default(0)
-  estimatedCost Float // in INR Crores
-  affectedCount Int           @default(0)
-  status        ProjectStatus @default(DRAFT)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id                 String        @id @default(uuid())
+  code               String        @unique
+  name               String
+  sector             String // Roads, Railways, Energy, Urban, Industrial
+  description        String?
+  stateCode          String
+  stateName          String
+  districtCodes      String[]
+  districtNames      String[]
+  piaOrgId           String?
+  piaOrg             Organization? @relation(fields: [piaOrgId], references: [id])
+  piaName            String
+  actCode            String        @default("RFCTLARR_2013")
+  requiredAreaHa     Float
+  estimatedCostPaise BigInt
+  status             ProjectStatus @default(DRAFT)
+  alignment          Json? // GeoJSON LineString/MultiLineString
+  isSynthetic        Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
-  proposals           Proposal[]
-  parcels             Parcel[]
-  workflowInstances   WorkflowInstance[]
-  statutoryMilestones StatutoryMilestone[]
-  slaTasks            SLATask[]
-  awards              Award[]
-  compensationCases   Compensation[]
-  rrCases             RRCase[]
-  possessionCases     Possession[]
-  documents           Document[]
-  riskAssessments     RiskAssessment[]
+  proposals       Proposal[]
+  parcels         Parcel[]
+  notices         StatutoryNotice[]
+  slaTasks        SLATask[]
+  awards          Award[]
+  compensations   Compensation[]
+  rrCases         RRCase[]
+  possessions     Possession[]
+  documents       Document[]
+  riskAssessments RiskAssessment[]
+  families        AffectedFamily[]
 }
 
 model Proposal {
-  id           String         @id @default(uuid())
-  projectId    String
-  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  title        String
-  landRequired Float
-  alignmentGeo Json? // GeoJSON alignment
-  status       ProposalStatus @default(DRAFT)
-  remarks      String?
-  submittedAt  DateTime?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id             String         @id @default(uuid())
+  projectId      String
+  project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title          String
+  landRequiredHa Float
+  alignmentGeo   Json?
+  status         ProposalStatus @default(DRAFT)
+  remarks        String?
+  submittedAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
 
-model WorkflowTemplate {
-  id             String   @id @default(uuid())
-  name           String
-  legalFramework String // e.g. LARR 2013, NH Act 1956
-  version        Int      @default(1)
-  config         Json // stages, transitions, permissions, SLA days
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+/// A gazette notification. One notice covers many parcels (often a village).
+model StatutoryNotice {
+  id          String     @id @default(uuid())
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind        NoticeKind
+  referenceNo String
+  gazetteRef  String?
+  publishedOn DateTime
+  documentId  String?
+  createdAt   DateTime   @default(now())
 
-  instances WorkflowInstance[]
-}
+  parcels Parcel[]
 
-model WorkflowInstance {
-  id           String           @id @default(uuid())
-  projectId    String
-  project      Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  templateId   String
-  template     WorkflowTemplate @relation(fields: [templateId], references: [id])
-  currentStage String // e.g. "Proposal Scrutiny", "State Approval", "Award Declaration"
-  status       String           @default("IN_PROGRESS")
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-
-  actions WorkflowAction[]
-}
-
-model WorkflowAction {
-  id          String           @id @default(uuid())
-  instanceId  String
-  instance    WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  actionName  String // Approve, Reject, Return, Raise Query, Verify
-  performedBy String
-  user        User             @relation(fields: [performedBy], references: [id])
-  fromStage   String
-  toStage     String
-  remarks     String?
-  createdAt   DateTime         @default(now())
+  @@index([projectId, kind])
 }
 
 model Parcel {
-  id                String             @id @default(uuid())
-  projectId         String
-  project           Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  parcelNumber      String
-  khasraNumber      String
-  villageName       String
-  districtName      String
-  stateName         String
-  totalArea         Float // in hectares
-  acquiredArea      Float              @default(0)
-  possessedArea     Float              @default(0)
-  landOwnerName     String
-  landClass         String // Agricultural, Commercial, Residential
-  status            ParcelStatus       @default(PROPOSED)
-  verificationState VerificationStatus @default(UNVERIFIED)
-  geometry          Json? // GeoJSON polygon
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  id                   String                                      @id @default(uuid())
+  projectId            String
+  project              Project                                     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parcelNumber         String
+  surveyNumber         String // khasra / survey / gat number as recorded
+  ulpin                String? // 14-digit Unique Land Parcel Identification Number
+  villageId            String
+  village              Jurisdiction                                @relation(fields: [villageId], references: [id])
+  villageName          String
+  districtCode         String
+  districtName         String
+  stateCode            String
+  stateName            String
+  totalAreaHa          Float
+  acquiredAreaHa       Float                                       @default(0)
+  landClass            String // Agricultural (irrigated/dry), Residential, Commercial, Forest, Government
+  landUse              String?
+  isRural              Boolean                                     @default(true)
+  distanceFromUrbanKm  Float?
+  marketRatePaisePerHa BigInt? // circle/guideline rate in force, for the award calculation
+  stage                ParcelStage                                 @default(IDENTIFIED)
+  verificationState    VerificationStatus                          @default(UNVERIFIED)
+  displayOwnerName     String // as shown in lists; the holders table is authoritative
+  geometry             Json? // GeoJSON Polygon/MultiPolygon, EPSG:4326
+  areaSqm              Float? // maintained by trigger from geom
+  geom                 Unsupported("geometry(MultiPolygon,4326)")? // PostGIS; set by trigger
+  familiesAffected     Int                                         @default(0)
+  isSynthetic          Boolean                                     @default(true)
+  createdAt            DateTime                                    @default(now())
+  updatedAt            DateTime                                    @updatedAt
 
+  notices       StatutoryNotice[]
+  holders       ParcelHolder[]
   verifications ParcelVerification[]
   objections    Objection[]
   awards        Award[]
@@ -267,15 +328,58 @@ model Parcel {
   possessions   Possession[]
   documents     Document[]
   provenance    DataProvenance[]
+
+  @@unique([projectId, parcelNumber])
+  @@index([projectId, stage])
+  @@index([villageId])
+  @@index([districtCode])
+  @@index([geom], map: "Parcel_geom_gist", type: Gist)
+}
+
+/// A natural person appearing in any record (land records, award, field survey).
+/// Names are stored as recorded; reconciliation links variants of the same person.
+model Person {
+  id          String   @id @default(uuid())
+  name        String // as recorded (any script)
+  nameScript  String   @default("Latn") // ISO 15924: Latn, Deva, ...
+  fatherName  String?
+  gender      String?
+  phone       String?
+  idHash      String? // salted hash of an ID number; raw IDs are never stored
+  villageCode String?
+  source      String   @default("LAND_RECORDS") // LAND_RECORDS, AWARD, FIELD_SURVEY, ECOURTS
+  isSynthetic Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  holdings      ParcelHolder[]
+  user          User?
+  compensations Compensation[]
+
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "Person_name_trgm", type: Gin)
+}
+
+model ParcelHolder {
+  id             String   @id @default(uuid())
+  parcelId       String
+  parcel         Parcel   @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+  personId       String
+  person         Person   @relation(fields: [personId], references: [id])
+  sharePct       Float    @default(100)
+  nameAsRecorded String
+  source         String   @default("LAND_RECORDS")
+  createdAt      DateTime @default(now())
+
+  @@unique([parcelId, personId, source])
 }
 
 model LandRecordReference {
   id          String   @id @default(uuid())
-  khasraNo    String
+  surveyNo    String
   villageCode String
   ownerName   String
-  area        Float
+  areaHa      Float
   recordDate  DateTime
+  source      String   @default("STATE_LAND_RECORDS_SYNTHETIC")
   rawData     Json
   createdAt   DateTime @default(now())
 }
@@ -284,10 +388,10 @@ model ParcelVerification {
   id            String             @id @default(uuid())
   parcelId      String
   parcel        Parcel             @relation(fields: [parcelId], references: [id], onDelete: Cascade)
-  verifiedBy    String
-  officer       User               @relation(fields: [verifiedBy], references: [id])
+  verifiedById  String
   latitude      Float
   longitude     Float
+  accuracyM     Float?
   photoUrl      String?
   notes         String?
   status        VerificationStatus @default(OFFICER_VERIFIED)
@@ -296,14 +400,22 @@ model ParcelVerification {
 }
 
 model Notification {
-  id        String    @id @default(uuid())
-  userId    String?
-  role      RoleName?
-  title     String
-  message   String
-  type      String // SLA_BREACH, STATUTORY_DEADLINE, TASK_ASSIGNMENT, APPROVAL
-  isRead    Boolean   @default(false)
-  createdAt DateTime  @default(now())
+  id           String    @id @default(uuid())
+  userId       String?
+  role         RoleName?
+  stateCode    String?
+  districtCode String?
+  title        String
+  message      String
+  type         String // SLA_BREACH, STATUTORY_DEADLINE, TASK_ASSIGNMENT, APPROVAL, GIS_BLOCK
+  severity     String    @default("INFO") // INFO, WARNING, CRITICAL
+  entityType   String?
+  entityId     String?
+  dedupeKey    String?   @unique // prevents duplicate T-60/T-30/T-7 alerts
+  isRead       Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  @@index([role, isRead])
 }
 
 model Objection {
@@ -311,9 +423,11 @@ model Objection {
   parcelId    String
   parcel      Parcel          @relation(fields: [parcelId], references: [id], onDelete: Cascade)
   applicant   String
-  category    String // Compensation Amount, Land Measurement, Title Dispute
+  category    String // COMPENSATION_AMOUNT, MEASUREMENT, TITLE, PUBLIC_PURPOSE, OTHER
   description String
+  filedOn     DateTime        @default(now())
   status      ObjectionStatus @default(SUBMITTED)
+  resolution  String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -321,53 +435,67 @@ model Objection {
 }
 
 model Hearing {
-  id               String    @id @default(uuid())
+  id               String        @id @default(uuid())
   objectionId      String
-  objection        Objection @relation(fields: [objectionId], references: [id], onDelete: Cascade)
-  hearingDate      DateTime
+  objection        Objection     @relation(fields: [objectionId], references: [id], onDelete: Cascade)
+  scheduledAt      DateTime
   venue            String
   presidingOfficer String
-  status           String    @default("SCHEDULED")
-  decision         String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  status           HearingStatus @default(SCHEDULED)
+  outcome          String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 }
 
+/// Award for one parcel. Components are stored with the calculation trace so a
+/// citizen and an auditor can see exactly how the total was reached.
 model Award {
-  id              String   @id @default(uuid())
-  awardNumber     String   @unique
-  projectId       String
-  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  parcelId        String
-  parcel          Parcel   @relation(fields: [parcelId], references: [id])
-  valuationLand   Float
-  valuationAssets Float    @default(0)
-  solatiumAmount  Float    @default(0)
-  totalAward      Float
-  declaredDate    DateTime @default(now())
-  status          String   @default("DECLARED")
-  createdAt       DateTime @default(now())
+  id                    String      @id @default(uuid())
+  awardNumber           String      @unique
+  projectId             String
+  project               Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parcelId              String
+  parcel                Parcel      @relation(fields: [parcelId], references: [id])
+  awardDate             DateTime
+  marketValuePaise      BigInt
+  multiplier            Decimal     @db.Decimal(4, 2)
+  assetsValuePaise      BigInt      @default(0)
+  solatiumPaise         BigInt
+  additionalAmountPaise BigInt
+  totalPaise            BigInt
+  calculation           Json // step-by-step trace incl. rule citations
+  status                AwardStatus @default(DECLARED)
+  createdAt             DateTime    @default(now())
 
   compensations Compensation[]
+
+  @@index([parcelId])
 }
 
 model Compensation {
-  id              String             @id @default(uuid())
-  projectId       String
-  project         Project            @relation(fields: [projectId], references: [id])
-  parcelId        String
-  parcel          Parcel             @relation(fields: [parcelId], references: [id])
-  awardId         String?
-  award           Award?             @relation(fields: [awardId], references: [id])
-  beneficiaryName String
-  bankAccount     String?
-  ifscCode        String?
-  amount          Float
-  status          CompensationStatus @default(ASSESSED)
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id               String             @id @default(uuid())
+  projectId        String
+  project          Project            @relation(fields: [projectId], references: [id])
+  parcelId         String
+  parcel           Parcel             @relation(fields: [parcelId], references: [id])
+  awardId          String?
+  award            Award?             @relation(fields: [awardId], references: [id])
+  personId         String?
+  person           Person?            @relation(fields: [personId], references: [id])
+  beneficiaryName  String
+  sharePct         Float              @default(100)
+  bankAccountLast4 String? // full account numbers are never stored
+  ifscCode         String?
+  amountPaise      BigInt
+  status           CompensationStatus @default(ASSESSED)
+  paidOn           DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   paymentReferences PaymentReference[]
+
+  @@index([status])
+  @@index([parcelId])
 }
 
 model PaymentReference {
@@ -375,31 +503,41 @@ model PaymentReference {
   compensationId String
   compensation   Compensation @relation(fields: [compensationId], references: [id], onDelete: Cascade)
   utrNumber      String       @unique
-  gatewaySource  String       @default("PFMS_TREASURY_MOCK")
-  amount         Float
+  gatewaySource  String       @default("PFMS_SYNTHETIC")
+  amountPaise    BigInt
   status         String       @default("SUCCESS")
   transactedAt   DateTime     @default(now())
 }
 
 model AffectedFamily {
-  id           String   @id @default(uuid())
-  headName     String
-  familySize   Int
-  idHash       String
-  villageName  String
-  isVulnerable Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  id            String   @id @default(uuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id])
+  headName      String
+  headNameLocal String?
+  familySize    Int
+  idHash        String
+  villageName   String
+  category      String   @default("LANDOWNER") // LANDOWNER, LANDLESS_LABOURER, TENANT, ARTISAN, SC_ST
+  isVulnerable  Boolean  @default(false)
+  isDisplaced   Boolean  @default(false)
+  createdAt     DateTime @default(now())
 
   rrCases RRCase[]
 }
 
+/// Catalogue of R&R entitlements (Second Schedule of RFCTLARR 2013).
 model Entitlement {
   id          String   @id @default(uuid())
-  name        String // Housing Unit, One-Time Grant, Annuity, Resettlement
-  category    String
-  amountValue Float?
+  code        String   @unique
+  name        String
+  category    String // HOUSING, GRANT, ANNUITY, EMPLOYMENT, TRANSPORT, SUBSISTENCE
+  amountPaise BigInt?
   description String
+  citation    String?
   createdAt   DateTime @default(now())
+
+  grants RREntitlementGrant[]
 }
 
 model RRCase {
@@ -414,29 +552,35 @@ model RRCase {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
-  deliveries RRDelivery[]
+  grants RREntitlementGrant[]
+
+  @@index([parcelId])
 }
 
-model RRDelivery {
-  id          String   @id @default(uuid())
-  caseId      String
-  case        RRCase   @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  benefitName String
-  deliveredAt DateTime @default(now())
-  remarks     String?
+model RREntitlementGrant {
+  id            String            @id @default(uuid())
+  caseId        String
+  case          RRCase            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  entitlementId String
+  entitlement   Entitlement       @relation(fields: [entitlementId], references: [id])
+  amountPaise   BigInt?
+  status        EntitlementStatus @default(ASSIGNED)
+  deliveredOn   DateTime?
+  remarks       String?
+  createdAt     DateTime          @default(now())
 }
 
 model Possession {
   id           String           @id @default(uuid())
   projectId    String
   project      Project          @relation(fields: [projectId], references: [id])
-  parcelId     String
+  parcelId     String           @unique
   parcel       Parcel           @relation(fields: [parcelId], references: [id])
   status       PossessionStatus @default(ELIGIBLE)
-  takenDate    DateTime?
-  handoverDate DateTime?
+  scheduledOn  DateTime?
+  takenOn      DateTime?
+  handedOverOn DateTime?
   authority    String?
-  documentUrl  String?
   latitude     Float?
   longitude    Float?
   remarks      String?
@@ -445,20 +589,28 @@ model Possession {
 }
 
 model Document {
-  id         String   @id @default(uuid())
-  fileName   String
-  minioKey   String
-  mimeType   String
-  fileSize   Int
-  bucket     String   @default("rnlam-documents")
-  projectId  String?
-  project    Project? @relation(fields: [projectId], references: [id])
-  parcelId   String?
-  parcel     Parcel?  @relation(fields: [parcelId], references: [id])
-  uploadedBy String
-  createdAt  DateTime @default(now())
+  id             String       @id @default(uuid())
+  kind           DocumentKind @default(OTHER)
+  title          String
+  fileName       String
+  storageBackend String       @default("local") // local | minio
+  storageKey     String
+  sha256         String
+  mimeType       String
+  sizeBytes      Int
+  projectId      String?
+  project        Project?     @relation(fields: [projectId], references: [id])
+  parcelId       String?
+  parcel         Parcel?      @relation(fields: [parcelId], references: [id])
+  referenceNo    String? // e.g. forest clearance F.No., Gram Sabha resolution no.
+  issuedOn       DateTime?
+  uploadedById   String?
+  isSynthetic    Boolean      @default(true)
+  createdAt      DateTime     @default(now())
 
   versions DocumentVersion[]
+
+  @@index([parcelId, kind])
 }
 
 model DocumentVersion {
@@ -466,7 +618,8 @@ model DocumentVersion {
   documentId String
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   version    Int
-  minioKey   String
+  storageKey String
+  sha256     String
   uploadedAt DateTime @default(now())
 }
 
@@ -484,32 +637,63 @@ model SLATask {
   createdAt     DateTime  @default(now())
 }
 
-model StatutoryMilestone {
-  id           String          @id @default(uuid())
-  projectId    String
-  project      Project         @relation(fields: [projectId], references: [id])
-  name         String // Preliminary Notification, Objections Period, Award Deadline
-  referenceLaw String
-  deadlineDate DateTime
-  status       MilestoneStatus @default(UPCOMING)
-  createdAt    DateTime        @default(now())
+/// Append-only record of every lifecycle transition, written by LifecycleService.
+model StateTransition {
+  id         String    @id @default(uuid())
+  entityType String // Parcel, Objection, Hearing, Compensation, RRCase, Possession, Project, Proposal
+  entityId   String
+  event      String
+  fromState  String
+  toState    String
+  actorId    String?
+  actor      User?     @relation(fields: [actorId], references: [id])
+  actorRole  RoleName?
+  reason     String?
+  override   Boolean   @default(false) // a guard was overridden by a senior officer
+  createdAt  DateTime  @default(now())
+
+  @@index([entityType, entityId])
 }
 
+/// Tamper-evident audit chain. hash = SHA-256(prevHash || canonicalJSON(fields)).
+/// `seq` fixes the order; inserts are serialised with an advisory lock.
 model AuditEvent {
-  id            String   @id @default(uuid())
-  actorId       String
-  actorRole     RoleName
-  user          User     @relation(fields: [actorId], references: [id])
+  seq           BigInt   @id @default(autoincrement())
+  id            String   @unique @default(uuid())
+  actorId       String?
+  user          User?    @relation(fields: [actorId], references: [id])
+  actorRole     String
   action        String
   entityType    String
   entityId      String
   previousState Json?
   newState      Json?
   reason        String?
+  highlighted   Boolean  @default(false)
   requestId     String?
-  previousHash  String // Hash Chaining for Tamper Evidence
+  timestamp     DateTime
+  previousHash  String
   hash          String   @unique
-  timestamp     DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+/// Transactional outbox. Rows are written in the same transaction as the state
+/// change and delivered by the dispatcher (at-least-once).
+model OutboxEvent {
+  seq           BigInt    @id @default(autoincrement())
+  id            String    @unique @default(uuid())
+  type          String // e.g. parcel.stage_changed.v1
+  aggregateType String
+  aggregateId   String
+  payload       Json
+  occurredAt    DateTime  @default(now())
+  dispatchedAt  DateTime?
+  attempts      Int       @default(0)
+  lastError     String?
+
+  @@index([dispatchedAt])
+  @@index([aggregateType, aggregateId])
 }
 
 model DataProvenance {
@@ -518,7 +702,7 @@ model DataProvenance {
   parcel             Parcel    @relation(fields: [parcelId], references: [id], onDelete: Cascade)
   fieldName          String
   value              String
-  source             String // e.g. "State Land Records API", "Field Inspection PWA"
+  source             String
   sourceRecordId     String?
   capturedAt         DateTime  @default(now())
   verifiedAt         DateTime?
@@ -530,10 +714,11 @@ model RiskAssessment {
   id                  String   @id @default(uuid())
   projectId           String
   project             Project  @relation(fields: [projectId], references: [id])
-  riskScore           Float // 0 to 100
-  riskLevel           String // LOW, MEDIUM, HIGH, CRITICAL
+  riskScore           Float
+  riskLevel           String
   contributingFactors Json
   recommendation      String
+  model               String   @default("synthetic-rf-v1")
   assessedAt          DateTime @default(now())
 }
 

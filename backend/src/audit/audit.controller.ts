@@ -1,19 +1,34 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { R } from '../auth/auth.types';
+import { Roles } from '../auth/decorators';
 import { AuditService } from './audit.service';
-import { RolesGuard } from '../auth/roles.guard';
 
+@ApiTags('audit')
+@ApiBearerAuth()
+@Roles(...R.OFFICIALS)
 @Controller('audit')
-@UseGuards(RolesGuard)
 export class AuditController {
-  constructor(private readonly auditService: AuditService) {}
+  constructor(private readonly audit: AuditService) {}
 
   @Get()
-  async findAll(@Query('entityType') entityType?: string, @Query('entityId') entityId?: string) {
-    return this.auditService.findAll({ entityType, entityId });
+  @ApiOperation({ summary: 'Audit entries, newest first' })
+  @ApiQuery({ name: 'entityType', required: false })
+  @ApiQuery({ name: 'entityId', required: false })
+  @ApiQuery({ name: 'highlighted', required: false, description: 'true = overrides and other highlighted entries only' })
+  @ApiQuery({ name: 'limit', required: false })
+  list(
+    @Query('entityType') entityType?: string,
+    @Query('entityId') entityId?: string,
+    @Query('highlighted') highlighted?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.audit.list({ entityType, entityId, highlightedOnly: highlighted === 'true', limit: limit ? Number(limit) : undefined });
   }
 
-  @Get('verify-chain')
-  async verifyChain() {
-    return this.auditService.verifyChain();
+  @Get('verify')
+  @ApiOperation({ summary: 'Recompute every hash in the chain and report the first break, if any' })
+  verify() {
+    return this.audit.verify();
   }
 }

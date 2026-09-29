@@ -1,35 +1,41 @@
-import { Controller, Get, Post, Body, Query, Patch, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { CompensationStatus } from '@prisma/client';
+import { AuthUser, R } from '../auth/auth.types';
+import { CurrentUser, Roles } from '../auth/decorators';
 import { CompensationService } from './compensation.service';
-import { CompensationStatus, RoleName } from '@prisma/client';
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
 
+/** Approve / hold / dispute / retry go through /lifecycle/Compensation/:id/transitions. */
+@ApiTags('compensation')
+@ApiBearerAuth()
+@Roles(...R.OFFICIALS)
 @Controller('compensation')
-@UseGuards(RolesGuard)
 export class CompensationController {
-  constructor(private readonly compensationService: CompensationService) {}
+  constructor(private readonly compensation: CompensationService) {}
 
-  @Get('cases')
-  async getCases(@Query('projectId') projectId?: string) {
-    return this.compensationService.getCases(projectId);
-  }
-
-  @Post('initiate-payment')
-  @Roles(RoleName.FINANCE_OFFICER, RoleName.DISTRICT_OFFICER, RoleName.CENTRAL_ADMIN)
-  async initiatePayment(
-    @Body()
-    body: {
-      compensationId: string;
-      utrNumber?: string;
-      gatewaySource?: string;
-    },
+  @Get()
+  @ApiOperation({ summary: 'Compensation lines with payment references and totals by status' })
+  @ApiQuery({ name: 'projectId', required: false })
+  @ApiQuery({ name: 'parcelId', required: false })
+  @ApiQuery({ name: 'status', required: false, enum: CompensationStatus })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'pageSize', required: false })
+  list(
+    @CurrentUser() user: AuthUser,
+    @Query('projectId') projectId?: string,
+    @Query('parcelId') parcelId?: string,
+    @Query('status') status?: CompensationStatus,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
   ) {
-    return this.compensationService.initiatePayment(body);
+    return this.compensation.list(user, { projectId, parcelId, status, page, pageSize });
   }
 
-  @Patch(':id/status')
-  @Roles(RoleName.FINANCE_OFFICER, RoleName.DISTRICT_OFFICER, RoleName.CENTRAL_ADMIN)
-  async updateStatus(@Param('id') id: string, @Body() body: { status: CompensationStatus }) {
-    return this.compensationService.updateStatus(id, body.status);
+  @Post(':id/pay')
+  @HttpCode(200)
+  @Roles(...R.FINANCE)
+  @ApiOperation({ summary: 'Disburse an approved compensation through the payment gateway (synthetic PFMS in dev)' })
+  pay(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.compensation.pay(user, id);
   }
 }

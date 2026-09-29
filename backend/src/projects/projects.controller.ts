@@ -1,41 +1,36 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ProjectStatus } from '@prisma/client';
+import { AuthUser, R } from '../auth/auth.types';
+import { CurrentUser, Roles } from '../auth/decorators';
+import { CreateProjectDto } from './projects.dto';
 import { ProjectsService } from './projects.service';
-import { RoleName } from '@prisma/client';
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
 
+@ApiTags('projects')
+@ApiBearerAuth()
 @Controller('projects')
-@UseGuards(RolesGuard)
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(private readonly projects: ProjectsService) {}
 
   @Get()
-  async findAll(@Query('stateCode') stateCode?: string, @Query('districtCode') districtCode?: string) {
-    return this.projectsService.findAll({ stateCode, districtCode });
+  @ApiOperation({ summary: 'Projects in the caller’s jurisdiction, with parcel counts by stage' })
+  @ApiQuery({ name: 'status', required: false, enum: ProjectStatus })
+  @ApiQuery({ name: 'stateCode', required: false })
+  @ApiQuery({ name: 'q', required: false })
+  list(@CurrentUser() user: AuthUser, @Query('status') status?: ProjectStatus, @Query('stateCode') stateCode?: string, @Query('q') q?: string) {
+    return this.projects.list(user, { status, stateCode, q });
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.projectsService.findOne(id);
+  @ApiOperation({ summary: 'Project detail: stage breakdown, notices, compensation totals' })
+  get(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.projects.get(user, id);
   }
 
   @Post()
-  @Roles(RoleName.PIA_OFFICER, RoleName.CENTRAL_ADMIN)
-  async create(
-    @Body()
-    body: {
-      code: string;
-      name: string;
-      sector: string;
-      stateCode: string;
-      stateName: string;
-      districtCodes: string[];
-      districtNames: string[];
-      piaName: string;
-      requiredLand: number;
-      estimatedCost: number;
-    },
-  ) {
-    return this.projectsService.create(body);
+  @Roles(...R.PIA)
+  @ApiOperation({ summary: 'Create a project (draft)' })
+  create(@CurrentUser() user: AuthUser, @Body() dto: CreateProjectDto) {
+    return this.projects.create(user, dto);
   }
 }
