@@ -1098,3 +1098,44 @@ model FieldEvidence {
 
   @@index([parcelId, receivedAt])
 }
+
+enum GrievanceStatus {
+  RECEIVED
+  UNDER_REVIEW
+  RESOLVED
+}
+
+/// A citizen's grievance, lodged through the CPGRAMS adapter (6.11). The
+/// default adapter is synthetic; `channel` says which one issued the number.
+model Grievance {
+  id             String          @id @default(uuid())
+  registrationNo String          @unique
+  channel        String          @default("CPGRAMS_SYNTHETIC")
+  personId       String
+  parcelId       String
+  category       String // AMOUNT, PAYMENT_DELAY, RR, MEASUREMENT, HEARING, OTHER
+  description    String
+  language       String          @default("en") // the language the citizen wrote in
+  status         GrievanceStatus @default(RECEIVED)
+  reply          String?
+  repliedById    String?
+  repliedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([parcelId])
+  @@index([personId])
+}
+
+/// A document issued to a citizen's DigiLocker (6.11; synthetic adapter by default).
+model DigiLockerIssue {
+  id         String   @id @default(uuid())
+  documentId String
+  personId   String
+  uri        String
+  channel    String   @default("DIGILOCKER_SYNTHETIC")
+  sha256     String
+  issuedAt   DateTime @default(now())
+
+  @@unique([documentId, personId])
+}
