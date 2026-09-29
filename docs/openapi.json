@@ -183,8 +183,77 @@
     "/api/audit/verify": {
       "get": {
         "operationId": "AuditController_verify",
-        "summary": "Recompute every hash in the chain and report the first break, if any",
+        "summary": "Recompute every hash in the chain and every sealed Merkle root; report the first break, if any",
         "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "audit"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/audit/merkle/roots": {
+      "get": {
+        "operationId": "AuditController_roots",
+        "summary": "Sealed Merkle roots (one per IST day), newest first, with the chain of roots",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "audit"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/audit/merkle/seal": {
+      "post": {
+        "operationId": "AuditController_seal",
+        "summary": "Seal unsealed entries now, including the day in progress (normally hourly, completed days only)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "audit"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/audit/entries/{seq}/proof": {
+      "get": {
+        "operationId": "AuditController_proof",
+        "summary": "RFC 6962 inclusion proof for one audit entry against the Merkle root that sealed it",
+        "parameters": [
+          {
+            "name": "seq",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -430,6 +499,595 @@
         },
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/api/rules/packs": {
+      "get": {
+        "operationId": "RulesController_packs",
+        "summary": "Rule packs (central and state), with versions and effective dates",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "rules"
+        ]
+      }
+    },
+    "/api/rules/packs/{code}": {
+      "get": {
+        "operationId": "RulesController_pack",
+        "summary": "One rule pack with every entry, its citation and statutory text",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "rules"
+        ]
+      }
+    },
+    "/api/rules/resolve": {
+      "get": {
+        "operationId": "RulesController_resolve",
+        "summary": "The rules in force for a state on a date (state pack overlaid on the central pack)",
+        "parameters": [
+          {
+            "name": "stateCode",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "MH",
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09-29",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "rules"
+        ]
+      }
+    },
+    "/api/statutory/calendar": {
+      "get": {
+        "operationId": "StatutoryController_calendar",
+        "summary": "Statutory calendar: deadlines grouped by notice, soonest first, with days left and citations",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "RUNNING",
+                "MET",
+                "MISSED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeMet",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "statutory"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/statutory/parcels/{id}": {
+      "get": {
+        "operationId": "StatutoryController_parcel",
+        "summary": "Every statutory clock on one parcel (citizens: their own parcels)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "statutory"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/statutory/recompute": {
+      "post": {
+        "operationId": "StatutoryController_recompute",
+        "summary": "Recompute every clock and raise due alerts now (normally hourly)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "statutory"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/liability/summary": {
+      "get": {
+        "operationId": "LiabilityController_summary",
+        "summary": "Statutory cost of delay now: s.80 interest and s.30(3) additional amount, daily rate, 12-month trend",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "liability"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/liability/rollup": {
+      "get": {
+        "operationId": "LiabilityController_rollup",
+        "summary": "Liability rolled up by state, district, village or parcel (drill down with parent)",
+        "parameters": [
+          {
+            "name": "level",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "state",
+                "district",
+                "village",
+                "parcel"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "parent",
+            "required": false,
+            "in": "query",
+            "description": "state code, district code or village id of the level above",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "liability"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/liability/top": {
+      "get": {
+        "operationId": "LiabilityController_top",
+        "summary": "Top actions by money avoided if taken this week: pay unpaid compensation (s.80), declare pending awards (s.30(3))",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "horizonDays",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "liability"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/liability/refresh": {
+      "post": {
+        "operationId": "LiabilityController_refresh",
+        "summary": "Refresh the liability fact views now (normally automatic after each change)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "liability"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/stuck/projects": {
+      "get": {
+        "operationId": "WhyStuckController_projects",
+        "summary": "Every project in scope with its bottleneck count, top priority and ₹ exposure",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "why-stuck"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/stuck/bottlenecks": {
+      "get": {
+        "operationId": "WhyStuckController_bottlenecks",
+        "summary": "Ranked bottlenecks with explainable scores and action briefs",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "why-stuck"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/stuck/bottlenecks/{key}/decision": {
+      "post": {
+        "operationId": "WhyStuckController_decide",
+        "summary": "Accept or dispute a brief, with a comment. Audited; a dispute halves the priority until re-examined.",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "why-stuck"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/stuck/bottlenecks/{key}/rephrase": {
+      "post": {
+        "operationId": "WhyStuckController_rephrase",
+        "summary": "Plain-language or translated brief. The LLM may only rephrase; output is labelled and checked against the facts.",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RephraseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "why-stuck"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/reconciliation/queue": {
+      "get": {
+        "operationId": "ReconciliationController_queue",
+        "summary": "Candidate identity links for human verification (and auto-links, which stay reversible)",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "PENDING",
+                "AUTO_LINKED",
+                "CONFIRMED",
+                "REJECTED",
+                "UNLINKED"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "reconciliation"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/reconciliation/run": {
+      "post": {
+        "operationId": "ReconciliationController_run",
+        "summary": "Recompute candidate links across all person records (blocking by village)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "reconciliation"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/reconciliation/matches/{id}/decision": {
+      "post": {
+        "operationId": "ReconciliationController_decide",
+        "summary": "Confirm, reject or unlink a candidate. Records are never merged; confirming links them. Audited.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "reconciliation"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/thread/parcels/{id}": {
+      "get": {
+        "operationId": "ThreadController_parcel",
+        "summary": "Digital thread: every audited event on a parcel and its notices, cases, money, R&R, possession and documents, with audit hashes",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "thread"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/thread/projects/{id}/graph": {
+      "get": {
+        "operationId": "ThreadController_graph",
+        "summary": "Layered graph: project → notices → parcels → holders → cases/constraints",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "villageId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "thread"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1570,6 +2228,104 @@
         ]
       }
     },
+    "/api/documents/{id}/extract": {
+      "post": {
+        "operationId": "DocumentsController_extract",
+        "summary": "Ask the AI service to propose fields (survey numbers, owners, area, amounts, dates, sections) from this document",
+        "description": "Stores the proposal as PENDING_REVIEW with per-field confidence and evidence. 503 if the AI service is not running.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/documents/{id}/extractions": {
+      "get": {
+        "operationId": "DocumentsController_extractions",
+        "summary": "Field proposals for this document, newest first, with their review status",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/documents/extractions/{extractionId}/review": {
+      "post": {
+        "operationId": "DocumentsController_review",
+        "summary": "Confirm (with corrections) or reject proposed fields. Audited; every field flagged needs_review must be confirmed or corrected explicitly.",
+        "parameters": [
+          {
+            "name": "extractionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewExtractionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/documents/{id}/download": {
       "get": {
         "operationId": "DocumentsController_download",
@@ -1591,6 +2347,157 @@
         },
         "tags": [
           "documents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/legal/ask": {
+      "post": {
+        "operationId": "LegalController_ask",
+        "summary": "Ask the RFCTLARR Act 2013 (and R-NLAM rule packs) a question; answers quote the source with a section citation, or refuse",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "legal"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/court-links": {
+      "get": {
+        "operationId": "CourtLinksController_list",
+        "summary": "Proposed and decided links between court cases and parcels in your jurisdiction, with the reasons for each",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "CANDIDATE",
+                "CONFIRMED",
+                "REJECTED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "parcelId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "court-links"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/court-links/sync": {
+      "post": {
+        "operationId": "CourtLinksController_sync",
+        "summary": "Fetch cases from the eCourts adapter (synthetic by default) and refresh candidate links. Decided links are kept.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "court-links"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/court-links/{id}/review": {
+      "post": {
+        "operationId": "CourtLinksController_review",
+        "summary": "Confirm or reject a candidate link (audited). Confirmed pending title suits and stay orders feed \"Why is it stuck?\".",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewLinkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "court-links"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/command/summary": {
+      "get": {
+        "operationId": "CommandController_summary",
+        "summary": "National command screen: projects by stage, top 10 stuck projects with briefs, GIS-blocked parcels, SLA breaches by state, families awaiting R&R (scoped)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "command"
         ],
         "security": [
           {
@@ -1649,6 +2556,256 @@
         },
         "tags": [
           "gis"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/gis/layers": {
+      "get": {
+        "operationId": "GisController_layers",
+        "summary": "Constraint layers (forest, Scheduled Area, FRA claims, CRZ, protected areas) with geometry",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "gis"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "GisController_loadLayer",
+        "summary": "Load or replace a constraint layer from GeoJSON, then rescreen every parcel",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoadLayerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "gis"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/gis/conflicts": {
+      "get": {
+        "operationId": "GisController_conflicts",
+        "summary": "Parcels overlapping constraint layers, with the documents required and on file (the consent gate)",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "gis"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/gis/parcels/{id}/gate": {
+      "get": {
+        "operationId": "GisController_parcelGate",
+        "summary": "Consent gate status for one parcel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "gis"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/gis/screen": {
+      "post": {
+        "operationId": "GisController_screen",
+        "summary": "Rescreen every parcel against every layer (ST_Intersects + overlap area)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "gis"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/field/evidence": {
+      "post": {
+        "operationId": "FieldController_upload",
+        "summary": "Upload one sealed field-evidence bundle (idempotent on clientId)",
+        "description": "The server recomputes the SHA-256 seal and every photo hash and refuses a mismatch (422). A repeat of the same bundle returns the stored result. If another officer surveyed the parcel after this device last synced, the bundle is kept as CONFLICT for a supervisor instead of overwriting.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bundle": {
+                    "type": "string",
+                    "description": "Sealed evidence bundle (JSON) including bundleHash"
+                  },
+                  "photos": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "field"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "FieldController_list",
+        "summary": "Field evidence in your jurisdiction; serverTime is what a device records as its last sync",
+        "parameters": [
+          {
+            "name": "parcelId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "ACCEPTED",
+                "CONFLICT",
+                "SUPERSEDED",
+                "REJECTED"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "field"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/field/evidence/{id}/resolve": {
+      "post": {
+        "operationId": "FieldController_resolve",
+        "summary": "Resolve a conflicting survey: accept it (the earlier one is superseded) or reject it. Audited.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "field"
         ],
         "security": [
           {
@@ -1933,6 +3090,235 @@
           }
         ]
       }
+    },
+    "/api/citizen/grievances": {
+      "get": {
+        "operationId": "CitizenController_grievances",
+        "summary": "My grievances and their replies",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "citizen"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "CitizenController_lodge",
+        "summary": "Lodge a grievance about my land (issued a CPGRAMS-style number; synthetic adapter by default). Audited.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LodgeGrievanceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "citizen"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/citizen/documents": {
+      "get": {
+        "operationId": "CitizenController_documents",
+        "summary": "Public documents about my land (award copy, notices, payment advice), with any DigiLocker issue",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "citizen"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/citizen/documents/{id}/download": {
+      "get": {
+        "operationId": "CitizenController_download",
+        "summary": "Download one of my documents (checked against its recorded SHA-256)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "citizen"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/citizen/documents/{id}/digilocker": {
+      "post": {
+        "operationId": "CitizenController_toDigiLocker",
+        "summary": "Issue this document to my DigiLocker (synthetic adapter by default). Idempotent; audited.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "citizen"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/grievances": {
+      "get": {
+        "operationId": "GrievancesController_list",
+        "summary": "Citizen grievances about parcels in your jurisdiction",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "RECEIVED",
+                "UNDER_REVIEW",
+                "RESOLVED"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "grievances"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/grievances/{id}/reply": {
+      "post": {
+        "operationId": "GrievancesController_reply",
+        "summary": "Reply to a grievance and set its status. Audited; the citizen sees the reply.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyGrievanceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "grievances"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/i18n/translate": {
+      "post": {
+        "operationId": "TranslationController_translate",
+        "summary": "Translate free text between English, Hindi and Marathi through the configured provider (default: none; originals returned and marked)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "i18n"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
@@ -2012,6 +3398,40 @@
         "required": [
           "event"
         ]
+      },
+      "DecisionDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "CONFIRM",
+              "REJECT",
+              "UNLINK"
+            ]
+          },
+          "comment": {
+            "type": "string",
+            "example": "Verified with the 7/12 extract and Aadhaar-seeded bank account in person at the Tehsil office"
+          }
+        },
+        "required": [
+          "decision",
+          "comment"
+        ]
+      },
+      "RephraseDto": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "hi",
+              "mr"
+            ]
+          }
+        }
       },
       "CreateProjectDto": {
         "type": "object",
@@ -2220,6 +3640,13 @@
             "items": {
               "type": "string"
             }
+          },
+          "override": {
+            "type": "boolean",
+            "description": "Senior officers: proceed past overridable blockers (e.g. declaration window extended by Government order)"
+          },
+          "reason": {
+            "type": "string"
           }
         },
         "required": [
@@ -2313,6 +3740,14 @@
             "type": "number",
             "example": 250000,
             "description": "Value of trees, wells, structures (rupees), s.29"
+          },
+          "override": {
+            "type": "boolean",
+            "description": "Senior officers: proceed past overridable blockers, e.g. an award period extended by Government order (proviso to s.25)"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Required (≥ 20 chars) with override, e.g. the extension order reference"
           }
         },
         "required": [
@@ -2363,6 +3798,215 @@
             "type": "string"
           }
         }
+      },
+      "ReviewExtractionDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "CONFIRM",
+              "REJECT"
+            ]
+          },
+          "fields": {
+            "type": "object",
+            "description": "Final values per field, as accepted or corrected by the reviewer. Every field flagged needs_review must be included.",
+            "example": {
+              "survey_numbers": [
+                "45/2A"
+              ],
+              "village": [
+                "Borgaon"
+              ]
+            }
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "AskDto": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "example": "Within how many days can a person object after the preliminary notification?"
+          }
+        },
+        "required": [
+          "question"
+        ]
+      },
+      "ReviewLinkDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "CONFIRM",
+              "REJECT"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "description": "Required (≥ 10 characters) to reject"
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "LoadLayerDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "MH-YTL-RF-KHARSHI"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "FOREST",
+              "SCHEDULED_AREA",
+              "FRA_CLAIM",
+              "CRZ",
+              "PROTECTED_AREA"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "example": "Kharshi Reserved Forest"
+          },
+          "source": {
+            "type": "string",
+            "example": "State Forest Department compartment map, 2024"
+          },
+          "geojson": {
+            "type": "object",
+            "description": "GeoJSON Polygon, MultiPolygon, Feature or FeatureCollection (EPSG:4326)"
+          }
+        },
+        "required": [
+          "code",
+          "kind",
+          "name",
+          "source",
+          "geojson"
+        ]
+      },
+      "ResolveDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "ACCEPT",
+              "REJECT"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "description": "Why (at least 10 characters)"
+          }
+        },
+        "required": [
+          "decision",
+          "note"
+        ]
+      },
+      "LodgeGrievanceDto": {
+        "type": "object",
+        "properties": {
+          "parcelId": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "AMOUNT",
+              "PAYMENT_DELAY",
+              "RR",
+              "MEASUREMENT",
+              "HEARING",
+              "OTHER"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "description": "In the citizen’s own words, any script"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "hi",
+              "mr"
+            ]
+          }
+        },
+        "required": [
+          "parcelId",
+          "category",
+          "description"
+        ]
+      },
+      "ReplyGrievanceDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "UNDER_REVIEW",
+              "RESOLVED"
+            ]
+          },
+          "reply": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "reply"
+        ]
+      },
+      "TranslateDto": {
+        "type": "object",
+        "properties": {
+          "texts": {
+            "example": [
+              "Hearing adjourned to next week."
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "en",
+              "hi",
+              "mr"
+            ]
+          },
+          "target": {
+            "type": "string",
+            "enum": [
+              "en",
+              "hi",
+              "mr"
+            ]
+          }
+        },
+        "required": [
+          "texts",
+          "source",
+          "target"
+        ]
       }
     }
   }

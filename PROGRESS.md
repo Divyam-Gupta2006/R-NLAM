@@ -59,11 +59,13 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
 4. **Better legal retrieval (6.8).** Accuracy on unseen questions is modest (3/8 top-1).
    Sentence embeddings would help, but need a model download (~100–400 MB) and more RAM;
    say if you want it.
+5. **Two screens not yet clicked through with every service up.** The document "Read fields" dialog and
+   Ask the Act with the AI service running. Both APIs are tested end to end and were run live from the
+   backend (the seeded award PDF read back all 11 fields); the court-links page and Ask the Act's
+   "AI service not running" message were checked in a browser.
 6. **Service worker check in normal Chrome (6.10).** Build and run the frontend (`npm run build && npm start` in `frontend`), open `http://localhost:3000/field/assignments` in Chrome, and check DevTools → Application: the service worker `/field-sw.js` should be active for scope `/field/` and the app installable. In the Claude app's embedded browser, registration failed with "unknown error fetching the script" although the file is served correctly.
 7. **Hindi and Marathi wording (6.11).** I drafted every string in `frontend/lib/i18n/citizen.ts`; a native speaker should read them before any real use. A test guarantees completeness, not quality.
 8. **Bhashini, CPGRAMS, DigiLocker.** All three are behind interfaces with synthetic/no-op defaults. Real use needs: Bhashini ULCA credentials (`BHASHINI_USER_ID`, `BHASHINI_API_KEY`, `BHASHINI_PIPELINE_ID`), CPGRAMS onboarding with DARPG, DigiLocker issuer registration.
-5. **Browser walk-through of 6.8 and 6.9 screens.** They compile and their APIs are tested
-   end to end, but I did not run backend + frontend together (one heavy process at a time).
 
 ## Decisions made overnight
 
