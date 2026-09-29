@@ -1,0 +1,268 @@
+asyncapi: 3.0.0
+info:
+  title: R-NLAM lifecycle events
+  version: 1.0.0
+  description: |
+    Every lifecycle transition in R-NLAM (parcel, objection, hearing, compensation,
+    R&R case, possession, project, proposal) is published as a domain event.
+
+    **Transport today (default, `EVENT_BUS=outbox`):** events are written to the
+    `OutboxEvent` table **in the same database transaction** as the state change,
+    its `StateTransition` row and its hash-chained `AuditEvent`, so an event exists
+    if and only if the change committed. An in-process dispatcher delivers them in
+    `seq` order to subscribers (statutory clocks, liability refresh, notifications).
+    Delivery is **at-least-once**; handlers must be idempotent (all current ones
+    recompute from the database).
+
+    **Scale-out (`EVENT_BUS=kafka`, documented stub):** a relay (Debezium CDC on
+    `OutboxEvent`, or the dispatcher using kafkajs) produces each row to the topic
+    `rnlam.<aggregateType>` with key = `aggregateId`, which preserves per-entity
+    ordering. Publishers do not change. The Kafka adapter in
+    `backend/src/events/kafka-event-bus.ts` is not implemented in this build.
+
+    The live feed is available at `GET /api/events` (officials) and per entity in
+    the parcel's digital thread (`GET /api/thread/parcels/{id}`).
+  license:
+    name: Proprietary (SIH 2026 prototype)
+
+defaultContentType: application/json
+
+servers:
+  outbox:
+    host: localhost:5433
+    protocol: postgres
+    description: Transactional outbox table `public."OutboxEvent"` (default).
+  kafka:
+    host: kafka.example.gov.in:9092
+    protocol: kafka
+    description: Scale-out path (not deployed). Topics `rnlam.<aggregateType>`, key = aggregateId.
+
+channels:
+  parcelStage:
+    address: rnlam.Parcel
+    messages:
+      parcelStageChanged:
+        $ref: '#/components/messages/parcelStageChanged'
+  objectionStatus:
+    address: rnlam.Objection
+    messages:
+      objectionStatusChanged:
+        $ref: '#/components/messages/objectionStatusChanged'
+  hearingStatus:
+    address: rnlam.Hearing
+    messages:
+      hearingStatusChanged:
+        $ref: '#/components/messages/hearingStatusChanged'
+  compensationStatus:
+    address: rnlam.Compensation
+    messages:
+      compensationStatusChanged:
+        $ref: '#/components/messages/compensationStatusChanged'
+  rrCaseStatus:
+    address: rnlam.RRCase
+    messages:
+      rrCaseStatusChanged:
+        $ref: '#/components/messages/rrCaseStatusChanged'
+  possessionStatus:
+    address: rnlam.Possession
+    messages:
+      possessionStatusChanged:
+        $ref: '#/components/messages/possessionStatusChanged'
+  projectStatus:
+    address: rnlam.Project
+    messages:
+      projectStatusChanged:
+        $ref: '#/components/messages/projectStatusChanged'
+  proposalStatus:
+    address: rnlam.Proposal
+    messages:
+      proposalStatusChanged:
+        $ref: '#/components/messages/proposalStatusChanged'
+
+operations:
+  publishParcelStage:
+    action: send
+    channel:
+      $ref: '#/channels/parcelStage'
+    summary: Emitted by LifecycleService on every parcel transition (s.11 notification, s.19 declaration, award, payment complete, possession, urgency possession, handover, lapse, withdrawal).
+  consumeParcelStage:
+    action: receive
+    channel:
+      $ref: '#/channels/parcelStage'
+    summary: StatutoryService recomputes the parcel's clocks; LiabilityService refreshes its fact views.
+  publishCompensation:
+    action: send
+    channel:
+      $ref: '#/channels/compensationStatus'
+  consumeCompensation:
+    action: receive
+    channel:
+      $ref: '#/channels/compensationStatus'
+    summary: Statutory clocks (s.38 payment deadline) and the liability views refresh.
+  publishRRCase:
+    action: send
+    channel:
+      $ref: '#/channels/rrCaseStatus'
+  publishObjection:
+    action: send
+    channel:
+      $ref: '#/channels/objectionStatus'
+  publishHearing:
+    action: send
+    channel:
+      $ref: '#/channels/hearingStatus'
+  publishPossession:
+    action: send
+    channel:
+      $ref: '#/channels/possessionStatus'
+  publishProject:
+    action: send
+    channel:
+      $ref: '#/channels/projectStatus'
+  publishProposal:
+    action: send
+    channel:
+      $ref: '#/channels/proposalStatus'
+  consumeAnyOverride:
+    action: receive
+    channel:
+      $ref: '#/channels/parcelStage'
+    summary: NotificationsService raises a CRITICAL notification to national admins for any event with `override = true` (subscribed to all channels).
+
+components:
+  schemas:
+    Envelope:
+      type: object
+      description: The OutboxEvent row. `payload` differs per event type.
+      required: [seq, id, type, aggregateType, aggregateId, payload, occurredAt]
+      properties:
+        seq: { type: integer, description: Global, monotonically increasing delivery order }
+        id: { type: string, format: uuid }
+        type: { type: string, examples: ['parcel.stage_changed.v1'] }
+        aggregateType: { type: string, examples: ['Parcel'] }
+        aggregateId: { type: string, format: uuid }
+        occurredAt: { type: string, format: date-time }
+        dispatchedAt: { type: [string, 'null'], format: date-time }
+        attempts: { type: integer }
+        lastError: { type: [string, 'null'] }
+    TransitionPayload:
+      type: object
+      required: [event, from, to, actorRole, override, overriddenBlockers]
+      properties:
+        event: { type: string, description: 'Lifecycle event, e.g. DECLARE_AWARD' }
+        from: { type: string }
+        to: { type: string }
+        actorId: { type: [string, 'null'], format: uuid }
+        actorRole: { type: string, description: 'Role, or SYSTEM for automatic transitions' }
+        override: { type: boolean, description: 'A senior officer proceeded despite overridable blockers' }
+        overriddenBlockers:
+          type: array
+          items: { type: string, examples: ['GIS_FOREST_OVERLAP', 'AWARD_PERIOD_EXPIRED'] }
+      additionalProperties: true
+    ParcelStagePayload:
+      allOf:
+        - $ref: '#/components/schemas/TransitionPayload'
+        - type: object
+          properties:
+            to:
+              enum: [IDENTIFIED, PRELIM_NOTIFIED, DECLARED, AWARDED, COMPENSATION_PAID, POSSESSION_TAKEN, HANDED_OVER, LAPSED, WITHDRAWN]
+            projectId: { type: string, format: uuid }
+            villageId: { type: string, format: uuid }
+            districtCode: { type: string, examples: ['MH-WRD'] }
+            stateCode: { type: string, examples: ['MH'] }
+            noticeId: { type: string, format: uuid, description: 'For notice-driven transitions' }
+            awardId: { type: string, format: uuid }
+            awardNumber: { type: string }
+            totalPaise: { type: string, description: 'Integer paise as a decimal string' }
+            takenOn: { type: string, format: date-time }
+            urgencyOrderRef: { type: string }
+    CompensationPayload:
+      allOf:
+        - $ref: '#/components/schemas/TransitionPayload'
+        - type: object
+          properties:
+            to: { enum: [ASSESSED, APPROVED, INITIATED, PAID, FAILED, DISPUTED, ON_HOLD] }
+            parcelId: { type: string, format: uuid }
+            projectId: { type: string, format: uuid }
+            amountPaise: { type: string }
+            gateway: { type: string, examples: ['PFMS_SYNTHETIC'] }
+            synthetic: { type: boolean }
+            utrNumber: { type: string }
+  messages:
+    parcelStageChanged:
+      name: parcel.stage_changed.v1
+      payload: { $ref: '#/components/schemas/ParcelStagePayload' }
+      examples:
+        - name: awardDeclared
+          payload:
+            event: DECLARE_AWARD
+            from: DECLARED
+            to: AWARDED
+            actorRole: DISTRICT_OFFICER
+            override: false
+            overriddenBlockers: []
+            projectId: 3f0c1b8e-7d2a-4f7e-9b1c-2a5d0e6f8a91
+            districtCode: MH-YTL
+            stateCode: MH
+            awardNumber: AWD/MH-YTL/2026/0003
+            totalPaise: '4410098212'
+    objectionStatusChanged:
+      name: objection.status_changed.v1
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/TransitionPayload'
+          - type: object
+            properties:
+              to: { enum: [SUBMITTED, UNDER_REVIEW, HEARING_SCHEDULED, RESOLVED, REJECTED, ESCALATED] }
+              parcelId: { type: string, format: uuid }
+    hearingStatusChanged:
+      name: hearing.status_changed.v1
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/TransitionPayload'
+          - type: object
+            properties:
+              to: { enum: [SCHEDULED, HELD, ADJOURNED, CANCELLED] }
+              objectionId: { type: string, format: uuid }
+    compensationStatusChanged:
+      name: compensation.status_changed.v1
+      payload: { $ref: '#/components/schemas/CompensationPayload' }
+    rrCaseStatusChanged:
+      name: rr_case.status_changed.v1
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/TransitionPayload'
+          - type: object
+            properties:
+              to: { enum: [IDENTIFIED, ELIGIBILITY_VERIFIED, PLAN_CREATED, BENEFIT_ASSIGNED, BENEFIT_DELIVERED, COMPLETED] }
+              parcelId: { type: string, format: uuid }
+              projectId: { type: string, format: uuid }
+              familyId: { type: string, format: uuid }
+    possessionStatusChanged:
+      name: possession.status_changed.v1
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/TransitionPayload'
+          - type: object
+            properties:
+              to: { enum: [ELIGIBLE, SCHEDULED, POSSESSION_TAKEN, HANDED_TO_PIA] }
+              parcelId: { type: string, format: uuid }
+              projectId: { type: string, format: uuid }
+    projectStatusChanged:
+      name: project.status_changed.v1
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/TransitionPayload'
+          - type: object
+            properties:
+              to: { enum: [DRAFT, SUBMITTED, UNDER_SCRUTINY, APPROVED, ACTIVE, ON_HOLD, COMPLETED, CLOSED] }
+              stateCode: { type: string }
+    proposalStatusChanged:
+      name: proposal.status_changed.v1
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/TransitionPayload'
+          - type: object
+            properties:
+              to: { enum: [DRAFT, SUBMITTED, UNDER_SCRUTINY, QUERY_RAISED, APPROVED, REJECTED, WITHDRAWN] }
+              projectId: { type: string, format: uuid }
