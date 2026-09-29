@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request = require('supertest');
 import { createApp } from '../src/main';
+import { resetDemo } from './reset';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { STORY } from '../prisma/seed/demo';
 
@@ -25,6 +26,7 @@ describe('R-NLAM API (e2e)', () => {
   beforeAll(async () => {
     app = await createApp();
     await app.init();
+    await resetDemo(app);
     prisma = app.get(PrismaService);
     await login('central', 'js.landreforms@demo.rnlam.in');
     await login('wardha', 'collector.wardha@demo.rnlam.in');

@@ -114,6 +114,24 @@ export class LiabilityService implements OnModuleInit {
     return { s80, additional };
   }
 
+  /** Per-parcel liability now, for the bottleneck engine. */
+  async perParcel(user: AuthUser) {
+    const now = this.clock.now();
+    const { s80, additional } = await this.facts(user);
+    const out = new Map<string, { s80: S80Fact[]; add: AdditionalFact[]; additionalAccruedPaise: bigint; additionalDailyPaise: bigint; s80OutstandingPaise: bigint; s80DailyPaise: bigint }>();
+    const get = (id: string) => {
+      if (!out.has(id)) out.set(id, { s80: [], add: [], additionalAccruedPaise: 0n, additionalDailyPaise: 0n, s80OutstandingPaise: 0n, s80DailyPaise: 0n });
+      return out.get(id)!;
+    };
+    for (const f of s80) get(f.parcelId).s80.push(f);
+    for (const f of additional) get(f.parcelId).add.push(f);
+    for (const v of out.values()) {
+      const l = liabilityAt(v.s80, v.add, now);
+      Object.assign(v, l);
+    }
+    return out;
+  }
+
   async summary(user: AuthUser) {
     const now = this.clock.now();
     const { s80, additional } = await this.facts(user);
