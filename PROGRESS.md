@@ -9,8 +9,8 @@ Living log of the SIH 2026 finalist build. Newest status first. Evidence for eve
 |---|---|---|
 | Phase 0: DB setup (user-space PG 17.11 + PostGIS 3.6.2) | Done (see "Needs Parvati" #1) | `phase0-reality-check` |
 | Phase 0: reality check + `docs/GAP_REPORT.md` | Done | `phase0-reality-check` |
-| Phase 1: auth, DTOs, migrations, state machine, audit | In progress | — |
-| Phase 1: frontend mock removal | Not started | — |
+| Phase 1: auth, DTOs, migrations, state machine, audit, outbox, seed | Done: `npm test` 43 passed, `npm run test:e2e` 18 passed | `phase1-backend-core` (merged) |
+| Phase 1: frontend mock removal | In progress | `phase1-frontend` |
 | 6.1 rule engine … 6.13 | Not started | — |
 
 ## ⚠ Read first: OneDrive
@@ -60,7 +60,29 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
   characters of `backend/.env` by mistake. That was a local-only password, and I
   regenerated it straight away. Values in `.env` are never printed now.
 
+- **Rewrote rather than patched the backend services.** The old ones had no validation,
+  no guards, float money and a non-recomputable audit hash, so there was little to keep
+  beyond the module layout. The routes changed shape (`/gis/geojson` became
+  `/gis/parcels`, workflow became `/lifecycle`); `docs/openapi.json` is the new contract.
+- **Money is BigInt paise and serialises to JSON as a number.** Every realistic amount
+  (up to ~₹90 lakh crore) is below 2^53; anything larger falls back to a string.
+- **PostGIS lives in schema `extensions`, not `public`.** Otherwise Prisma treats
+  `spatial_ref_sys` as drift and generates migrations that drop it. Prisma pins
+  `search_path` to `public` per connection, so raw SQL writes `extensions.ST_*`.
+- **The seed wipes and rebuilds** (TRUNCATE, then a deterministic PRNG). That makes it
+  idempotent and doubles as `reset-demo`.
+- **Statutory numbers are placeholders until 6.1.** Solatium 100%, additional amount 12%
+  p.a., and the multiplier distance bands live in `RulesService` and are marked
+  unverified. 6.1 moves them into cited, versioned rule packs.
+- **Keycloak mode is kept but untested.** `jwks-rsa` now loads lazily (its ESM
+  dependency broke Jest). Dev mode issues equivalent claims.
+
 ## Log
+
+- **2026-09-29 02:10–04:00**: Phase 1 backend. New schema and baseline migration; auth
+  and the global guard; lifecycle engine with 8 machines; audit chain v2; outbox; domain
+  modules; demo seed (164 parcels, 944 audit entries, 4 s); 43 unit and 18 e2e tests
+  passing.
 
 - **2026-09-29 01:00–02:10**: cloned; installed deps; built user-space PG + PostGIS; ran
   every existing check; wrote `docs/GAP_REPORT.md`; added `scripts/db-*.ps1`; the backend

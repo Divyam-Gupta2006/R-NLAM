@@ -1,0 +1,11 @@
+import { Global, Module } from '@nestjs/common';
+import { LifecycleController } from './lifecycle.controller';
+import { LifecycleService } from './lifecycle.service';
+
+@Global()
+@Module({
+  controllers: [LifecycleController],
+  providers: [LifecycleService],
+  exports: [LifecycleService],
+})
+export class LifecycleModule {}

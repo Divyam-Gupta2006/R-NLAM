@@ -125,13 +125,38 @@ if ((Invoke-PgSuperSql "SELECT 1 FROM pg_database WHERE datname = 'rnlam';") -ne
     Write-Step 'Creating database rnlam'
     Invoke-PgSuperSql 'CREATE DATABASE rnlam OWNER rnlam;' | Out-Null
 }
-# PostGIS is not a trusted extension, so only a superuser can create it. Putting it
-# in template1 means Prisma's throwaway shadow database (created by the
-# non-superuser rnlam during `migrate dev`) already has it, and the migration's
-# CREATE EXTENSION IF NOT EXISTS is a no-op.
-$ext = 'CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT EXISTS pg_trgm; CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;'
-Invoke-PgSuperSql $ext 'template1' | Out-Null
-Invoke-PgSuperSql 'CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT EXISTS pg_trgm; CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;' 'rnlam' | Out-Null
+# PostGIS is not a trusted extension, so only a superuser can create it; the
+# migrations' CREATE EXTENSION IF NOT EXISTS is then a no-op.
+# Extensions live in their own schema "extensions", not "public": otherwise Prisma
+# sees spatial_ref_sys as an unknown table and generates migrations that drop it.
+# template1 gets them too, so any database rnlam creates (tests) starts ready.
+$ext = @'
+DO $$
+BEGIN
+  -- Relocate an earlier install from public (PostGIS cannot be moved in place),
+  -- but only while no table depends on it.
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'postgis' AND extnamespace = 'public'::regnamespace)
+     AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE udt_name = 'geometry' AND table_schema = 'public') THEN
+    DROP EXTENSION postgis CASCADE;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm' AND extnamespace = 'public'::regnamespace) THEN
+    ALTER EXTENSION pg_trgm SET SCHEMA extensions;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'fuzzystrmatch' AND extnamespace = 'public'::regnamespace) THEN
+    ALTER EXTENSION fuzzystrmatch SET SCHEMA extensions;
+  END IF;
+END $$;
+CREATE EXTENSION IF NOT EXISTS postgis SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS fuzzystrmatch SCHEMA extensions;
+GRANT USAGE ON SCHEMA extensions TO PUBLIC;
+'@
+foreach ($db in 'template1', 'rnlam') {
+    Invoke-PgSuperSql 'CREATE SCHEMA IF NOT EXISTS extensions;' $db | Out-Null
+    Invoke-PgSuperSql $ext $db | Out-Null
+}
+Invoke-PgSuperSql 'ALTER DATABASE rnlam SET search_path TO public, extensions;' | Out-Null
+Invoke-PgSuperSql 'ALTER SCHEMA public OWNER TO rnlam;' 'rnlam' | Out-Null
 
 $ver = Invoke-PgSuperSql 'SELECT postgis_full_version();' 'rnlam'
 Write-Step 'Ready'

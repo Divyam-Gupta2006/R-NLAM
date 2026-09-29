@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { AwardsService } from './awards.service';
 import { AwardsController } from './awards.controller';
+import { AwardsService } from './awards.service';
 
 @Module({
   controllers: [AwardsController],

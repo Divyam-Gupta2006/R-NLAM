@@ -1,49 +1,61 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from './prisma/prisma.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { AwardsModule } from './awards/awards.module';
+import { CitizenModule } from './citizen/citizen.module';
+import { CommonModule } from './common/common.module';
+import { CompensationModule } from './compensation/compensation.module';
+import { DocumentsModule } from './documents/documents.module';
+import { EventsModule } from './events/events.module';
+import { GisModule } from './gis/gis.module';
+import { IntegrationsModule } from './integrations/integrations.module';
+import { LifecycleModule } from './lifecycle/lifecycle.module';
+import { NoticesModule } from './notices/notices.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ObjectionsModule } from './objections/objections.module';
+import { ParcelsModule } from './parcels/parcels.module';
+import { PossessionModule } from './possession/possession.module';
+import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ProposalsModule } from './proposals/proposals.module';
-import { WorkflowModule } from './workflow/workflow.module';
-import { ParcelsModule } from './parcels/parcels.module';
-import { GisModule } from './gis/gis.module';
-import { ObjectionsModule } from './objections/objections.module';
-import { HearingsModule } from './hearings/hearings.module';
-import { AwardsModule } from './awards/awards.module';
-import { CompensationModule } from './compensation/compensation.module';
 import { RRModule } from './rr/rr.module';
-import { PossessionModule } from './possession/possession.module';
-import { DocumentsModule } from './documents/documents.module';
-import { AuditModule } from './audit/audit.module';
-import { NotificationsModule } from './notifications/notifications.module';
-import { AnalyticsModule } from './analytics/analytics.module';
-import { UsersModule } from './users/users.module';
-import { IntegrationsModule } from './integrations/integrations.module';
-import { CitizenModule } from './citizen/citizen.module';
+import { RulesModule } from './rules/rules.module';
 import { SlaModule } from './sla/sla.module';
+import { StorageModule } from './storage/storage.module';
+import { SystemModule } from './system/system.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
+    // infrastructure
     PrismaModule,
+    CommonModule,
     AuthModule,
+    AuditModule,
+    EventsModule,
+    LifecycleModule,
+    StorageModule,
+    RulesModule,
+    NotificationsModule,
+    SystemModule,
+    // domain
     ProjectsModule,
     ProposalsModule,
-    WorkflowModule,
     ParcelsModule,
-    GisModule,
+    NoticesModule,
     ObjectionsModule,
-    HearingsModule,
     AwardsModule,
     CompensationModule,
     RRModule,
     PossessionModule,
     DocumentsModule,
-    AuditModule,
-    NotificationsModule,
+    GisModule,
     AnalyticsModule,
+    SlaModule,
     UsersModule,
     IntegrationsModule,
     CitizenModule,
-    SlaModule,
   ],
 })
 export class AppModule {}

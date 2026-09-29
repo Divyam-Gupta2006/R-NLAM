@@ -28,3 +28,7 @@ Thumbs.db
 .vscode/
 
 *.tsbuildinfo
+
+# Local document storage (dev)
+backend/storage/
+backend/test/.storage/

@@ -1,25 +1,24 @@
-import { Controller, Get, Post, Param, Query, Patch, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { AuthUser } from '../auth/auth.types';
+import { CurrentUser } from '../auth/decorators';
 import { NotificationsService } from './notifications.service';
-import { RoleName } from '@prisma/client';
-import { RolesGuard } from '../auth/roles.guard';
 
+@ApiTags('notifications')
+@ApiBearerAuth()
 @Controller('notifications')
-@UseGuards(RolesGuard)
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(private readonly notifications: NotificationsService) {}
 
   @Get()
-  async findAll(@Query('userId') userId?: string, @Query('role') role?: RoleName) {
-    return this.notificationsService.findAll(userId, role);
+  @ApiQuery({ name: 'unread', required: false })
+  @ApiOperation({ summary: 'Notifications for me or my role in my jurisdiction' })
+  list(@CurrentUser() user: AuthUser, @Query('unread') unread?: string) {
+    return this.notifications.forUser(user, unread === 'true');
   }
 
   @Patch(':id/read')
-  async markAsRead(@Param('id') id: string) {
-    return this.notificationsService.markAsRead(id);
-  }
-
-  @Post('check-breaches')
-  async checkBreaches() {
-    return this.notificationsService.checkBreaches();
+  markRead(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.notifications.markRead(user, id);
   }
 }

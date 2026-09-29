@@ -1,98 +1,145 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { RoleName } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import * as crypto from 'crypto';
+import { AuthUser } from '../auth/auth.types';
+import { canonicalJson } from '../common/canonical-json';
+import { Clock } from '../common/clock';
+import { PrismaService } from '../prisma/prisma.service';
+import { computeAuditHash, GENESIS_HASH, verifyAuditRows } from './audit-hash';
+
+export type Tx = Prisma.TransactionClient;
+
+export interface AuditInput {
+  actor: AuthUser | 'SYSTEM';
+  action: string;
+  entityType: string;
+  entityId: string;
+  previousState?: unknown;
+  newState?: unknown;
+  reason?: string | null;
+  highlighted?: boolean;
+  requestId?: string | null;
+}
+
+/** Arbitrary key for the advisory lock that serialises chain appends. */
+const AUDIT_LOCK_KEY = 7_201_300_001;
+
+/** Round-trip through canonical JSON so what we store is exactly what we hashed. */
+function toStoredJson(v: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {
+  if (v === undefined || v === null) return Prisma.JsonNull;
+  return JSON.parse(canonicalJson(v)) as Prisma.InputJsonValue;
+}
 
 @Injectable()
 export class AuditService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly clock: Clock,
+  ) {}
 
-  private calculateHash(previousHash: string, data: object): string {
-    return crypto.createHash('sha256').update(previousHash + JSON.stringify(data)).digest('hex');
-  }
+  /**
+   * Append one entry. Must run inside the caller's transaction so the audit row
+   * commits or rolls back together with the change it describes.
+   */
+  async append(tx: Tx, input: AuditInput) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${AUDIT_LOCK_KEY}::bigint)`;
+    const last = await tx.auditEvent.findFirst({ orderBy: { seq: 'desc' }, select: { hash: true } });
+    const previousHash = last?.hash ?? GENESIS_HASH;
 
-  async findAll(filter: { entityType?: string; entityId?: string }) {
-    const where: any = {};
-    if (filter.entityType) where.entityType = filter.entityType;
-    if (filter.entityId) where.entityId = filter.entityId;
-
-    return this.prisma.auditEvent.findMany({
-      where,
-      include: { user: { select: { name: true, role: true } } },
-      orderBy: { timestamp: 'desc' },
-      take: 100,
-    });
-  }
-
-  async logEvent(data: {
-    actorId: string;
-    actorRole: RoleName;
-    action: string;
-    entityType: string;
-    entityId: string;
-    previousState?: any;
-    newState?: any;
-    reason?: string;
-    requestId?: string;
-  }) {
-    const lastEvent = await this.prisma.auditEvent.findFirst({
-      orderBy: { timestamp: 'desc' },
-    });
-
-    const previousHash = lastEvent ? lastEvent.hash : 'GENESIS_HASH_00000000000000000000000000000000';
-    const hashData = {
-      actorId: data.actorId,
-      actorRole: data.actorRole,
-      action: data.action,
-      entityType: data.entityType,
-      entityId: data.entityId,
-      timestamp: new Date().toISOString(),
+    const actor = input.actor === 'SYSTEM' ? null : input.actor;
+    const previousState = input.previousState === undefined ? null : JSON.parse(canonicalJson(input.previousState));
+    const newState = input.newState === undefined ? null : JSON.parse(canonicalJson(input.newState));
+    const fields = {
+      id: crypto.randomUUID(),
+      actorId: actor?.id ?? null,
+      actorRole: actor?.role ?? 'SYSTEM',
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      previousState,
+      newState,
+      reason: input.reason ?? null,
+      highlighted: input.highlighted ?? false,
+      requestId: input.requestId ?? null,
+      // Postgres keeps milliseconds; truncate so the stored value hashes identically.
+      timestamp: new Date(Math.floor(this.clock.now().getTime())),
     };
+    const hash = computeAuditHash(previousHash, fields);
 
-    const hash = this.calculateHash(previousHash, hashData);
-
-    return this.prisma.auditEvent.create({
+    return tx.auditEvent.create({
       data: {
-        actorId: data.actorId,
-        actorRole: data.actorRole,
-        action: data.action,
-        entityType: data.entityType,
-        entityId: data.entityId,
-        previousState: data.previousState || null,
-        newState: data.newState || null,
-        reason: data.reason || '',
-        requestId: data.requestId || null,
+        ...fields,
+        previousState: toStoredJson(previousState),
+        newState: toStoredJson(newState),
         previousHash,
         hash,
       },
     });
   }
 
-  async verifyChain() {
-    const events = await this.prisma.auditEvent.findMany({
-      orderBy: { timestamp: 'asc' },
+  /** Convenience for writes that are not already inside a transaction. */
+  async log(input: AuditInput) {
+    return this.prisma.$transaction((tx) => this.append(tx, input));
+  }
+
+  async list(filter: { entityType?: string; entityId?: string; highlightedOnly?: boolean; limit?: number }) {
+    return this.prisma.auditEvent.findMany({
+      where: {
+        entityType: filter.entityType,
+        entityId: filter.entityId,
+        highlighted: filter.highlightedOnly ? true : undefined,
+      },
+      include: { user: { select: { name: true, role: true, designation: true } } },
+      orderBy: { seq: 'desc' },
+      take: Math.min(filter.limit ?? 100, 500),
     });
+  }
 
-    let isValid = true;
-    let tamperedEventId: string | null = null;
-    let expectedPreviousHash = 'GENESIS_HASH_00000000000000000000000000000000';
+  /** Recompute every hash from genesis, in batches, and report the first break. */
+  async verify() {
+    const started = Date.now();
+    const batch = 2000;
+    let cursor: bigint | undefined;
+    let running = GENESIS_HASH;
+    let checked = 0;
 
-    for (const event of events) {
-      if (event.previousHash !== expectedPreviousHash) {
-        isValid = false;
-        tamperedEventId = event.id;
-        break;
+    for (;;) {
+      const rows = await this.prisma.auditEvent.findMany({
+        where: cursor === undefined ? undefined : { seq: { gt: cursor } },
+        orderBy: { seq: 'asc' },
+        take: batch,
+      });
+      if (rows.length === 0) break;
+      const result = verifyAuditRows(
+        rows.map((r) => ({ ...r, previousState: r.previousState, newState: r.newState })),
+        running,
+      );
+      if (!result.ok) {
+        const brokenIndex = rows.findIndex((r) => r.seq === result.break.seq);
+        return {
+          valid: false,
+          checked: checked + Math.max(brokenIndex, 0),
+          break: result.break,
+          headHash: null,
+          durationMs: Date.now() - started,
+          message:
+            result.break.kind === 'CONTENT_ALTERED'
+              ? `Entry #${result.break.seq} was modified after it was written.`
+              : `The chain is broken before entry #${result.break.seq} (an entry was removed or reordered).`,
+        };
       }
-      expectedPreviousHash = event.hash;
+      running = result.lastHash;
+      checked += rows.length;
+      cursor = rows[rows.length - 1].seq;
     }
 
     return {
-      chainIntegrityValid: isValid,
-      totalEventsAudited: events.length,
-      tamperedEventId,
-      statusMessage: isValid
-        ? 'Audit chain cryptographic integrity verified successfully.'
-        : `Tampering detected at event ID ${tamperedEventId}.`,
+      valid: true,
+      checked,
+      break: null,
+      headHash: running,
+      durationMs: Date.now() - started,
+      message: `All ${checked} audit entries verified; chain head ${running.slice(0, 12)}…`,
     };
   }
 }
