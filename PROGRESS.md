@@ -13,7 +13,8 @@ Living log of the SIH 2026 finalist build. Newest status first. Evidence for eve
 | Phase 1: frontend mock removal | Done: `lib/mockData.ts` deleted; `npx tsc --noEmit` clean; `next build` 105/105 pages; browser-checked login, national dashboard, parcel page (blocked possession shows the s.38(1) blocker), work queue, finance, R&R | `phase1-frontend` (merged) |
 | 6.1 statutory rule engine | Done: verified rule packs, statutory clocks, T-60/30/7 alerts, lapse guards, calendar and rule-pack UI. `npm test` 64 passed; `npm run test:e2e` 24 passed | `feature/6.1-rule-engine` |
 | 6.2 live interest liability + roll-up | Done: s.80 interest and s.30(3) additional amount, live counter, trend, nation→parcel drill-down, act-this-week ranking. `npm test` 75 passed; `npm run test:e2e` 28 passed | `feature/6.2-interest-liability` |
-| 6.3 … 6.13 | Not started | — |
+| 6.3 GIS consent gate | Done: constraint layers in PostGIS, ST_Intersects + overlap area on parcel create and layer load, backend guard on award and possession, override rules, map with exact overlaps, upload-to-clear. `npm run test:e2e` 32 passed | `feature/6.3-gis-gate` |
+| 6.4 … 6.13 | Not started | — |
 
 ## ⚠ Read first: OneDrive
 
@@ -113,6 +114,18 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
 - **Materialized views hold the facts; TypeScript does the money.** `mv_liability_s80` and
   `mv_liability_additional` (refreshed concurrently after writes) replace ClickHouse at
   this scale. Rupee arithmetic stays in tested BigInt code.
+
+- **The Scheduled Area block cannot be overridden.** s.41(3) requires prior Gram Sabha
+  consent "in all cases … including acquisition in case of urgency", so this gate cannot
+  be overridden. Forest, FRA, CRZ and protected-area blocks can be overridden by a
+  State/Central admin with a reason, recorded as a highlighted audit entry, as the brief
+  asks.
+- **Forest land needs two documents: forest clearance and an FRA settlement certificate.**
+  These citations (Van Adhiniyam 1980 s.2, FRA 2006) are **not yet verified** against their
+  statute texts in this build and are flagged `unverified` in the rule pack and the UI.
+- **Overlaps under 10 m² are ignored** as digitising noise.
+- **Seeded documents are real files.** Tiny generated PDFs stamped SYNTHETIC, so download
+  and the SHA-256 re-check work in the demo.
 
 ## Log
 

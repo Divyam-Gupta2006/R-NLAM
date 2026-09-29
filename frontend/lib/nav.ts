@@ -35,6 +35,7 @@ export const PORTALS: Portal[] = [
           { label: 'Delay risk', href: '/central/risk', icon: 'AlertTriangle' },
           { label: 'Statutory calendar', href: '/central/statutory', icon: 'Calendar' },
           { label: 'Interest liability', href: '/central/liability', icon: 'IndianRupee' },
+          { label: 'GIS consent gate', href: '/central/consent', icon: 'ShieldAlert' },
         ],
       },
       {
@@ -81,6 +82,7 @@ export const PORTALS: Portal[] = [
         items: [
           { label: 'Statutory calendar', href: '/state/statutory', icon: 'Calendar' },
           { label: 'Interest liability', href: '/state/liability', icon: 'IndianRupee' },
+          { label: 'GIS consent gate', href: '/state/consent', icon: 'ShieldAlert' },
           { label: 'SLA tracker', href: '/state/sla', icon: 'Clock' },
           { label: 'Land & parcels', href: '/state/land', icon: 'Layers' },
           { label: 'GIS map', href: '/state/gis', icon: 'Map' },
@@ -104,6 +106,7 @@ export const PORTALS: Portal[] = [
           { label: 'Work queue', href: '/district/work-queue', icon: 'Inbox' },
           { label: 'Statutory calendar', href: '/district/statutory', icon: 'Calendar' },
           { label: 'Interest liability', href: '/district/liability', icon: 'IndianRupee' },
+          { label: 'GIS consent gate', href: '/district/consent', icon: 'ShieldAlert' },
           { label: 'SLA tracker', href: '/district/sla', icon: 'Clock' },
         ],
       },
@@ -201,6 +204,7 @@ export const PORTALS: Portal[] = [
         title: 'Spatial',
         items: [
           { label: 'Parcel map', href: '/gis/parcels', icon: 'Map' },
+          { label: 'Consent gate', href: '/gis/consent', icon: 'ShieldAlert' },
           { label: 'Projects', href: '/gis/projects', icon: 'FolderKanban' },
           { label: 'Data quality', href: '/gis/quality', icon: 'ShieldCheck' },
           { label: 'Import', href: '/gis/import', icon: 'Upload' },

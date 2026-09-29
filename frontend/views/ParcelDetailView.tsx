@@ -8,6 +8,7 @@ import { AwardBreakdown } from '@/components/AwardBreakdown';
 import { LifecyclePanel } from '@/components/LifecyclePanel';
 import { ParcelMapCanvas } from '@/components/map/ParcelMap';
 import { ParcelClocks } from '@/views/StatutoryViews';
+import { ParcelGateCard } from '@/views/GisGateView';
 import type { ParcelFeature } from '@/components/map/map-types';
 import { Badge, Card, DataState, EmptyState, PageHeader, Stat, StatusBadge, SyntheticTag } from '@/components/ui';
 import { useUser } from '@/context/SessionContext';
@@ -186,6 +187,7 @@ function ParcelDetailBody({ p, reload }: { p: ParcelDetail; reload: () => void }
 
         <div className="space-y-5">
           <LifecyclePanel entityType="Parcel" entityId={p.id} onChanged={reload} showHistory={false} title="What can happen next" />
+          <ParcelGateCard parcelId={p.id} projectId={p.project.id} onChanged={reload} />
           <Card title="Statutory clocks" subtitle="From the rule pack in force when each clock started">
             <ParcelClocks parcelId={p.id} />
           </Card>
