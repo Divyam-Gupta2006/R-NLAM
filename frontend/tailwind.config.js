@@ -1,34 +1,23 @@
 /** @type {import('tailwindcss').Config} */
+const token = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+
 module.exports = {
-  content: [
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
-  ],
+  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './views/**/*.{ts,tsx}', './context/**/*.{ts,tsx}', './lib/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        gov: {
-          50: '#f0f4f8',
-          100: '#d9e2ec',
-          200: '#bcccdc',
-          300: '#9fb3c8',
-          400: '#829ab1',
-          500: '#627d98',
-          600: '#486581',
-          700: '#334e68',
-          800: '#243b53',
-          900: '#102a43',
-        },
-        brand: {
-          blue: '#0284c7',
-          navy: '#0f172a',
-          emerald: '#059669',
-          amber: '#d97706',
-          rose: '#e11d48',
-        }
+        ink: { DEFAULT: token('ink'), muted: token('ink-muted') },
+        surface: token('surface'),
+        panel: token('panel'),
+        line: token('line'),
+        navy: { DEFAULT: token('navy'), soft: token('navy-soft') },
+        saffron: { DEFAULT: token('saffron'), soft: token('saffron-soft') },
+        bharat: { DEFAULT: token('green'), soft: token('green-soft') },
+        danger: { DEFAULT: token('danger'), soft: token('danger-soft') },
+        warning: { DEFAULT: token('warning'), soft: token('warning-soft') },
+        info: { DEFAULT: token('info'), soft: token('info-soft') },
       },
     },
   },
   plugins: [],
-}
+};
