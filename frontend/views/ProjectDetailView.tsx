@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { LifecyclePanel } from '@/components/LifecyclePanel';
+import { ParcelGraph } from '@/components/ParcelGraph';
 import { ParcelMap } from '@/components/map/ParcelMap';
 import { STAGE_COLORS } from '@/components/map/map-types';
 import { Card, DataState, PageHeader, Stat, StatusBadge, SyntheticTag, Tabs } from '@/components/ui';
@@ -11,7 +12,7 @@ import { dateIST, ha, humanize, inr, inrShort, num } from '@/lib/format';
 import { ParcelsView } from './ParcelsView';
 import { BottleneckList } from './WhyStuckView';
 
-type Tab = 'overview' | 'stuck' | 'parcels' | 'map';
+type Tab = 'overview' | 'stuck' | 'parcels' | 'map' | 'graph';
 
 export function ProjectDetailView({ id }: { id: string }) {
   const state = useApi<ProjectDetail>(`/projects/${id}`);
@@ -50,6 +51,7 @@ export function ProjectDetailView({ id }: { id: string }) {
                 { key: 'stuck', label: 'Why stuck?' },
                 { key: 'parcels', label: 'Parcels' },
                 { key: 'map', label: 'Map' },
+                { key: 'graph', label: 'Graph' },
               ]}
             />
             {tab === 'overview' && (
@@ -111,6 +113,11 @@ export function ProjectDetailView({ id }: { id: string }) {
             )}
             {tab === 'stuck' && <BottleneckList projectId={p.id} />}
             {tab === 'parcels' && <ParcelsView title="" projectId={p.id} />}
+            {tab === 'graph' && (
+              <Card title="Project graph" subtitle="Project → notices → parcels → holders → cases and constraints">
+                <ParcelGraph projectId={p.id} />
+              </Card>
+            )}
             {tab === 'map' && (
               <Card>
                 <ParcelMap projectId={p.id} height={560} />

@@ -1,10 +1,11 @@
 'use client';
 
-import { ArrowLeft, FileText, Gavel, HeartHandshake, IndianRupee, KeyRound, Landmark, MapPin, Megaphone, Users } from 'lucide-react';
+import { ArrowLeft, FileText, MapPin, Users } from 'lucide-react';
 import Link from 'next/link';
-import React, { useMemo } from 'react';
+import React from 'react';
 import { DeclareAwardButton, HandOverButton, PayButton, TakePossessionButton, TransitionButton } from '@/components/actions';
 import { AwardBreakdown } from '@/components/AwardBreakdown';
+import { DigitalThread } from '@/components/DigitalThread';
 import { LifecyclePanel } from '@/components/LifecyclePanel';
 import { ParcelMapCanvas } from '@/components/map/ParcelMap';
 import { ParcelClocks } from '@/views/StatutoryViews';
@@ -14,34 +15,11 @@ import { Badge, Card, DataState, EmptyState, PageHeader, Stat, StatusBadge, Synt
 import { useUser } from '@/context/SessionContext';
 import { useApi } from '@/lib/api/hooks';
 import type { ParcelDetail } from '@/lib/api/types';
-import { dateIST, dateTimeIST, ha, humanize, inr, inrShort, num } from '@/lib/format';
+import { dateIST, ha, humanize, inr, inrShort, num } from '@/lib/format';
 
 const ACQUISITION = ['CENTRAL_ADMIN', 'STATE_ADMIN', 'STATE_OFFICER', 'DISTRICT_OFFICER'];
 const FINANCE = ['CENTRAL_ADMIN', 'STATE_ADMIN', 'FINANCE_OFFICER', 'DISTRICT_OFFICER'];
 const POSSESSION = ['CENTRAL_ADMIN', 'STATE_ADMIN', 'DISTRICT_OFFICER', 'FIELD_OFFICER'];
-
-interface ThreadItem {
-  at: string;
-  icon: React.ReactNode;
-  title: string;
-  detail?: string;
-  tone?: 'good' | 'bad' | 'accent' | 'info';
-}
-
-/** Merge every dated event on the parcel into one chronological thread. */
-function buildThread(p: ParcelDetail): ThreadItem[] {
-  const items: ThreadItem[] = [];
-  for (const n of p.notices) items.push({ at: n.publishedOn, icon: <Megaphone className="h-3.5 w-3.5" />, title: humanize(n.kind), detail: `${n.referenceNo}${n.gazetteRef ? ` · ${n.gazetteRef}` : ''}`, tone: 'info' });
-  for (const o of p.objections) {
-    items.push({ at: o.filedOn, icon: <Gavel className="h-3.5 w-3.5" />, title: `Objection filed: ${humanize(o.category)}`, detail: `${o.applicant}: ${o.description}`, tone: 'accent' });
-    for (const h of o.hearings) items.push({ at: h.scheduledAt, icon: <Gavel className="h-3.5 w-3.5" />, title: `Hearing ${humanize(h.status).toLowerCase()}`, detail: `${h.venue} · ${h.presidingOfficer}${h.outcome ? ` · ${h.outcome}` : ''}` });
-  }
-  for (const a of p.awards) items.push({ at: a.awardDate, icon: <Landmark className="h-3.5 w-3.5" />, title: `Award ${a.awardNumber}`, detail: `Total ${inr(a.totalPaise)}`, tone: 'accent' });
-  for (const c of p.compensations) for (const r of c.paymentReferences) items.push({ at: r.transactedAt, icon: <IndianRupee className="h-3.5 w-3.5" />, title: `Payment ${r.status === 'SUCCESS' ? 'credited' : 'failed'}: ${c.beneficiaryName}`, detail: `${inr(r.amountPaise)} · UTR ${r.utrNumber} · ${r.gatewaySource}`, tone: r.status === 'SUCCESS' ? 'good' : 'bad' });
-  for (const rc of p.rrCases) for (const g of rc.grants) if (g.deliveredOn) items.push({ at: g.deliveredOn, icon: <HeartHandshake className="h-3.5 w-3.5" />, title: `R&R delivered: ${g.entitlement.name}`, detail: rc.family.headName, tone: 'good' });
-  for (const h of p.history) items.push({ at: h.createdAt, icon: <KeyRound className="h-3.5 w-3.5" />, title: `Stage: ${humanize(h.fromState)} → ${humanize(h.toState)}`, detail: `${h.actor?.name ?? h.actorRole ?? 'System'}${h.reason ? ` · ${h.reason}` : ''}`, tone: h.override ? 'bad' : undefined });
-  return items.sort((a, b) => +new Date(a.at) - +new Date(b.at));
-}
 
 export function ParcelDetailView({ id }: { id: string }) {
   const state = useApi<ParcelDetail>(`/parcels/${id}`);
@@ -54,7 +32,6 @@ export function ParcelDetailView({ id }: { id: string }) {
 
 function ParcelDetailBody({ p, reload }: { p: ParcelDetail; reload: () => void }) {
   const user = useUser();
-  const thread = useMemo(() => buildThread(p), [p]);
   const award = p.awards[0];
   const feature: ParcelFeature[] = p.geometry
     ? [{ type: 'Feature', id: p.id, geometry: p.geometry, properties: { id: p.id, parcelNumber: p.parcelNumber, surveyNumber: p.surveyNumber, villageName: p.villageName, districtName: p.districtName, totalAreaHa: p.totalAreaHa, stage: p.stage, displayOwnerName: p.displayOwnerName } }]
@@ -163,25 +140,8 @@ function ParcelDetailBody({ p, reload }: { p: ParcelDetail; reload: () => void }
             </Card>
           )}
 
-          <Card title="Digital thread" subtitle="Every dated event on this parcel, in order">
-            {thread.length === 0 ? (
-              <EmptyState title="No events yet" />
-            ) : (
-              <ol className="relative space-y-3 border-l-2 border-line pl-5">
-                {thread.map((t, i) => (
-                  <li key={i}>
-                    <span className={`absolute -left-[11px] mt-0.5 grid h-5 w-5 place-items-center rounded-full border-2 border-panel ${t.tone === 'good' ? 'bg-bharat text-white' : t.tone === 'bad' ? 'bg-danger text-white' : t.tone === 'accent' ? 'bg-saffron text-white' : t.tone === 'info' ? 'bg-info text-white' : 'bg-line text-ink'}`}>
-                      {t.icon}
-                    </span>
-                    <p className="text-sm font-semibold text-ink">{t.title}</p>
-                    <p className="text-xs text-ink-muted">
-                      {dateTimeIST(t.at)}
-                      {t.detail ? ` · ${t.detail}` : ''}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            )}
+          <Card title="Digital thread" subtitle="Every audited event on this parcel and its notices, cases, money, R&R, possession and documents, each sealed by its hash">
+            <DigitalThread parcelId={p.id} />
           </Card>
         </div>
 
