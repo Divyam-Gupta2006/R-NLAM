@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function PIAPage() {
+export default function Page() {
   redirect('/pia/projects');
 }

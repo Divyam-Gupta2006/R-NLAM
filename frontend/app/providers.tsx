@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { RoleProvider } from '@/context/RoleContext';
-import { AuditProvider } from '@/context/AuditContext';
+import { SessionProvider } from '@/context/SessionContext';
+import { ToastProvider } from '@/context/ToastContext';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <RoleProvider>
-      <AuditProvider>{children}</AuditProvider>
-    </RoleProvider>
+    <ToastProvider>
+      <SessionProvider>{children}</SessionProvider>
+    </ToastProvider>
   );
 }

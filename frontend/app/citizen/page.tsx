@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function CitizenPage() {
+export default function Page() {
   redirect('/citizen/home');
 }
