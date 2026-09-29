@@ -25,6 +25,7 @@ import { SlaModule } from './sla/sla.module';
 import { StorageModule } from './storage/storage.module';
 import { LiabilityModule } from './liability/liability.module';
 import { StuckModule } from './stuck/stuck.module';
+import { ReconciliationModule } from './reconciliation/reconciliation.module';
 import { StatutoryModule } from './statutory/statutory.module';
 import { SystemModule } from './system/system.module';
 import { UsersModule } from './users/users.module';
@@ -45,6 +46,7 @@ import { UsersModule } from './users/users.module';
     StatutoryModule,
     LiabilityModule,
     StuckModule,
+    ReconciliationModule,
     // domain
     ProjectsModule,
     ProposalsModule,

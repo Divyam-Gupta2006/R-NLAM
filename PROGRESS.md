@@ -15,7 +15,8 @@ Living log of the SIH 2026 finalist build. Newest status first. Evidence for eve
 | 6.2 live interest liability + roll-up | Done: s.80 interest and s.30(3) additional amount, live counter, trend, nation→parcel drill-down, act-this-week ranking. `npm test` 75 passed; `npm run test:e2e` 28 passed | `feature/6.2-interest-liability` |
 | 6.3 GIS consent gate | Done: constraint layers in PostGIS, ST_Intersects + overlap area on parcel create and layer load, backend guard on award and possession, override rules, map with exact overlaps, upload-to-clear. `npm run test:e2e` 32 passed | `feature/6.3-gis-gate` |
 | 6.4 "Why is this project stuck?" | Done: 9 bottleneck types across rules, GIS, objections, money, R&R and litigation; priority = risk × ₹ × families with every component explained; action briefs; audited accept/dispute feedback; LLM rephrase-only with fact check. `npm test` 109 passed; `npm run test:e2e` 40 passed | `feature/6.4-why-stuck` |
-| 6.5 … 6.13 | Not started | — |
+| 6.5 owner reconciliation | **Partial, not merged**: transliteration (Devanagari/Gujarati/Kannada), Jaro-Winkler, Indian phonetic key, matcher with reasons and maker-checker policy, PersonMatch schema and migration, queue/decision API, seed hook. 43 new unit tests pass. **Not done:** e2e tests, UI queue page, and a check of the last `npm run seed:demo` run, which was unusually slow (waiting on AuditEvent inserts) when the session ended | `feature/6.5-owner-reconciliation` |
+| 6.6 … 6.13 | Not started | — |
 
 ## ⚠ Read first: OneDrive
 

@@ -341,17 +341,19 @@ model Parcel {
 /// A natural person appearing in any record (land records, award, field survey).
 /// Names are stored as recorded; reconciliation links variants of the same person.
 model Person {
-  id          String   @id @default(uuid())
-  name        String // as recorded (any script)
-  nameScript  String   @default("Latn") // ISO 15924: Latn, Deva, ...
-  fatherName  String?
-  gender      String?
-  phone       String?
-  idHash      String? // salted hash of an ID number; raw IDs are never stored
-  villageCode String?
-  source      String   @default("LAND_RECORDS") // LAND_RECORDS, AWARD, FIELD_SURVEY, ECOURTS
-  isSynthetic Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id              String   @id @default(uuid())
+  name            String // as recorded (any script)
+  nameScript      String   @default("Latn") // ISO 15924: Latn, Deva, ...
+  fatherName      String?
+  gender          String?
+  phone           String?
+  idHash          String? // salted hash of an ID number; raw IDs are never stored
+  villageCode     String?
+  source          String   @default("LAND_RECORDS") // LAND_RECORDS, AWARD, FIELD_SURVEY, ECOURTS
+  isSynthetic     Boolean  @default(true)
+  /// Shared by records confirmed to be the same person (6.5)
+  identityGroupId String?
+  createdAt       DateTime @default(now())
 
   holdings      ParcelHolder[]
   user          User?
@@ -890,4 +892,37 @@ model BottleneckDecision {
 
   @@index([key, createdAt])
   @@index([projectId])
+}
+
+// ---------------------------------------------------------------------------
+// 6.5 Owner reconciliation: candidate identity links, never silent merges.
+// ---------------------------------------------------------------------------
+
+enum MatchStatus {
+  PENDING
+  AUTO_LINKED
+  CONFIRMED
+  REJECTED
+  UNLINKED
+}
+
+/// A possible "same person" link between two Person records from different
+/// sources or scripts. Records are never merged; confirming sets a shared
+/// identityGroupId and is audited.
+model PersonMatch {
+  id            String      @id @default(uuid())
+  personAId     String
+  personBId     String
+  confidence    Float
+  reasons       Json
+  requiresHuman Boolean     @default(true)
+  status        MatchStatus @default(PENDING)
+  decidedById   String?
+  decidedAt     DateTime?
+  comment       String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([personAId, personBId])
+  @@index([status])
 }
