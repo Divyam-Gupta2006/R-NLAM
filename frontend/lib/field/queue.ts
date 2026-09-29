@@ -154,3 +154,13 @@ async function doSync(): Promise<SyncResult> {
   }
   return r;
 }
+
+/** Demo retakes: forget everything this device holds for the field app. */
+export async function resetDevice() {
+  await new Promise<void>((resolve) => {
+    const r = indexedDB.deleteDatabase(DB);
+    r.onsuccess = r.onerror = r.onblocked = () => resolve();
+  });
+  for (const k of Object.keys(localStorage)) if (k.startsWith('rnlam.field.')) localStorage.removeItem(k);
+  changed();
+}

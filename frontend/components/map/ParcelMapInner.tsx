@@ -6,13 +6,34 @@ import React, { useEffect, useMemo } from 'react';
 import { GeoJSON, LayersControl, MapContainer, ScaleControl, TileLayer, useMap } from 'react-leaflet';
 import { STAGE_COLORS, type OverlayLayer, type ParcelFeature } from './map-types';
 
-function FitBounds({ data }: { data: GeoJSON.FeatureCollection }) {
+/**
+ * Fit the view to the data once the container has a real size (a map mounted
+ * while its page is still loading measures 0×0 and would zoom out to a continent).
+ * With highlighted parcels, those are the focus (e.g. the blocked forest parcel).
+ */
+function FitBounds({ data, focus }: { data: GeoJSON.FeatureCollection; focus: Set<string> }) {
   const map = useMap();
   useEffect(() => {
-    if (!data.features.length) return;
-    const b = L.geoJSON(data).getBounds();
-    if (b.isValid()) map.fitBounds(b, { padding: [24, 24], maxZoom: 16 });
-  }, [data, map]);
+    const target = focus.size ? { ...data, features: data.features.filter((f) => focus.has(String((f.properties as { id?: string })?.id))) } : data;
+    if (!target.features.length) return;
+    const b = L.geoJSON(target).getBounds();
+    if (!b.isValid()) return;
+    let fitted = false;
+    const fit = () => {
+      const el = map.getContainer();
+      if (el.clientWidth < 50 || el.clientHeight < 50) return;
+      map.invalidateSize();
+      map.fitBounds(b, { padding: [32, 32], maxZoom: focus.size ? 15 : 14 });
+      fitted = true;
+    };
+    fit();
+    const ro = new ResizeObserver(() => {
+      if (!fitted) fit();
+      else map.invalidateSize();
+    });
+    ro.observe(map.getContainer());
+    return () => ro.disconnect();
+  }, [data, focus, map]);
   return null;
 }
 
@@ -71,7 +92,7 @@ export default function ParcelMapInner({
             if (onSelect) layer.on('click', () => onSelect(p.id));
           }}
         />
-        <FitBounds data={fc} />
+        <FitBounds data={fc} focus={highlight} />
         <ScaleControl position="bottomleft" />
       </MapContainer>
     </div>

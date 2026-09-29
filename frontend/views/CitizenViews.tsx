@@ -4,6 +4,7 @@ import { CalendarDays, CheckCircle2, Download, FileText, FolderLock, Home, India
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
+import { LogoMark } from '@/components/Logo';
 import { ParcelMapCanvas } from '@/components/map/ParcelMap';
 import { DataState, EmptyState, Spinner } from '@/components/ui';
 import { homeFor, useSession } from '@/context/SessionContext';
@@ -748,7 +749,7 @@ export function CitizenLogin() {
           <LanguageSwitcher />
         </div>
         <div className="text-center">
-          <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-navy text-2xl font-black text-white">R</span>
+          <LogoMark size={56} className="mx-auto" />
           <h1 className="mt-3 text-2xl font-bold">{t('loginHeadline')}</h1>
           <p className="text-ink-muted">{t('loginSub')}</p>
         </div>

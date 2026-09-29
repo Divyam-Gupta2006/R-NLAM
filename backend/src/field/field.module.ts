@@ -17,8 +17,8 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { FieldEvidenceStatus, Prisma } from '@prisma/client';
-import { IsIn, IsString, Length } from 'class-validator';
+import { FieldEvidenceStatus, Prisma, RoleName } from '@prisma/client';
+import { IsIn, IsString, IsUUID, Length } from 'class-validator';
 import * as crypto from 'crypto';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser, R } from '../auth/auth.types';
@@ -32,6 +32,11 @@ import { evidenceGeometryCheck } from './field-geo';
 
 const PHOTO_MIME = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+
+class FieldCheckDto {
+  @ApiProperty() @IsUUID() parcelId: string;
+  @ApiProperty({ example: 'New structure (about 210 m²) since the s.11 notification' }) @IsString() @Length(5, 300) finding: string;
+}
 
 class ResolveDto {
   @ApiProperty({ enum: ['ACCEPT', 'REJECT'] }) @IsIn(['ACCEPT', 'REJECT']) decision: 'ACCEPT' | 'REJECT';
@@ -208,6 +213,35 @@ export class FieldController {
         newState: { status, superseded: status === FieldEvidenceStatus.ACCEPTED ? ev.conflictWithId : null, note: dto.note },
       });
       return updated;
+    });
+  }
+
+  /** Field-check tasks raised from change detection (6.12). */
+  @Get('checks')
+  @Roles(...R.OFFICIALS)
+  @ApiOperation({ summary: 'Field-check tasks raised from change detection, in your jurisdiction' })
+  async checks(@CurrentUser() user: AuthUser) {
+    const now = this.clock.now();
+    const tasks = await this.prisma.sLATask.findMany({
+      where: { taskName: { startsWith: 'Field check:' }, project: { parcels: { some: parcelScope(user) } } },
+      orderBy: { startDate: 'desc' },
+    });
+    return tasks.map((t) => ({ ...t, isBreached: !t.completedDate && t.targetDate < now }));
+  }
+
+  @Post('checks')
+  @Roles(...R.ACQUISITION, RoleName.GIS_OFFICER)
+  @ApiOperation({ summary: 'Raise a field-check task for a parcel where imagery shows a change after notification (7-day SLA). Audited.' })
+  async raiseCheck(@CurrentUser() user: AuthUser, @Body() dto: FieldCheckDto) {
+    const parcel = await this.prisma.parcel.findFirst({ where: { AND: [{ id: dto.parcelId }, parcelScope(user)] }, select: { id: true, parcelNumber: true, projectId: true } });
+    if (!parcel) throw new NotFoundException('Parcel not found in your jurisdiction');
+    const now = this.clock.now();
+    return this.prisma.$transaction(async (tx) => {
+      const task = await tx.sLATask.create({
+        data: { projectId: parcel.projectId, taskName: `Field check: ${parcel.parcelNumber}: ${dto.finding}`, assignedRole: RoleName.FIELD_OFFICER, slaDays: 7, startDate: now, targetDate: new Date(now.getTime() + 7 * 86_400_000) },
+      });
+      await this.audit.append(tx, { actor: user, action: 'FIELD_CHECK_REQUESTED', entityType: 'Parcel', entityId: parcel.id, newState: { taskId: task.id, finding: dto.finding, dueOn: task.targetDate, source: 'change-detection' } });
+      return task;
     });
   }
 }

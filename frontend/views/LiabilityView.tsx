@@ -64,12 +64,12 @@ export function LiveCounter({ summary, compact }: { summary: LiabilitySummary; c
   return (
     <div className={compact ? '' : 'panel overflow-hidden'} data-tour="interest-counter">
       <div className={compact ? '' : 'bg-navy p-5 text-white'}>
-        <p className={compact ? 'text-xs font-semibold text-ink-muted' : 'text-xs font-semibold uppercase tracking-wider text-saffron'}>Statutory cost of delay accruing today</p>
-        <p className={compact ? 'tabular text-2xl font-extrabold text-danger' : 'tabular mt-1 text-4xl font-extrabold sm:text-5xl'} aria-live="off">
-          {inr(Math.round(Number(summary.totals.dailyPaise)))}
+        <p className={compact ? 'text-xs font-semibold text-ink-muted' : 'text-xs font-semibold uppercase tracking-wider text-saffron'}>Statutory cost of delay · live</p>
+        <p className={compact ? 'tabular text-2xl font-extrabold text-danger' : 'tabular mt-1 text-4xl font-extrabold sm:text-6xl'} aria-live="off">
+          {inr(Math.round(live))}
         </p>
-        <p className={compact ? 'text-xs text-ink-muted' : 'mt-1 text-sm text-white/80'}>
-          per day · {inr(Math.round(live), { paise: false })} accrued so far · +{inr(Math.round(summary.totals.perSecondPaise * 60))} a minute
+        <p className={compact ? 'text-xs text-ink-muted' : 'mt-2 text-sm text-white/80'}>
+          accrued so far · growing by <strong className={compact ? '' : 'text-white'}>{inr(Math.round(Number(summary.totals.dailyPaise)))} a day</strong>, about {inr(Math.round(summary.totals.perSecondPaise * 60))} every minute
         </p>
       </div>
     </div>
@@ -112,19 +112,43 @@ export function LiabilityView({ eyebrow }: { eyebrow?: string }) {
                 icon={<Gavel className="h-4 w-4" />}
               />
             </div>
-            <Card title="Trend" subtitle="Accrued liability at the start of each month" actions={<TrendingUp className="h-4 w-4 text-ink-muted" />}>
-              <div className="h-64" role="img" aria-label="Liability trend over twelve months">
-                <ResponsiveContainer>
-                  <AreaChart data={s.trend.map((t) => ({ date: t.date, s80: toRupees(t.s80OutstandingPaise), additional: toRupees(t.additionalAccruedPaise) }))} margin={{ left: 10, right: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="date" tickFormatter={(d: string) => new Date(d).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })} tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={(v: number) => inrShort(v * 100)} tick={{ fontSize: 11 }} width={70} />
-                    <Tooltip formatter={(v: number, n: string) => [inr(Math.round(v * 100), { paise: false }), n === 's80' ? 's.80 interest' : 's.30(3) additional']} labelFormatter={(d: string) => dateIST(d)} />
-                    <Legend formatter={(v: string) => (v === 's80' ? 's.80 interest' : 's.30(3) additional amount')} />
-                    <Area type="monotone" dataKey="additional" stackId="1" stroke="#b45309" fill="#fde68a" />
-                    <Area type="monotone" dataKey="s80" stackId="1" stroke="#be123c" fill="#fecdd3" />
-                  </AreaChart>
-                </ResponsiveContainer>
+            <Card title="Trend" subtitle="Liability at the start of each month; each chart has its own scale" actions={<TrendingUp className="h-4 w-4 text-ink-muted" />}>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {([
+                  { key: 's80', title: 's.80 interest owed (unpaid at possession)', stroke: '#be123c', fill: '#fecdd3', pick: (t: LiabilitySummary['trend'][number]) => t.s80OutstandingPaise },
+                  { key: 'additional', title: 's.30(3) additional amount (awards pending)', stroke: '#b45309', fill: '#fde68a', pick: (t: LiabilitySummary['trend'][number]) => t.additionalAccruedPaise },
+                ] as const).map((c) => {
+                  const data = s.trend.map((t) => ({ date: t.date, v: toRupees(c.pick(t)) }));
+                  const first = data[0]?.v ?? 0;
+                  const last = data[data.length - 1]?.v ?? 0;
+                  const change = first ? Math.round(((last - first) / first) * 100) : 0;
+                  return (
+                    <div key={c.key}>
+                      <p className="text-sm font-semibold text-ink">{c.title}</p>
+                      <p className="text-xs text-ink-muted">
+                        {inrShort(Math.round(first * 100))} → <strong className="text-ink">{inrShort(Math.round(last * 100))}</strong> in 12 months{' '}
+                        <span className={change >= 0 ? 'font-semibold text-danger' : 'font-semibold text-bharat'}>({change >= 0 ? '+' : ''}{change}%)</span>
+                      </p>
+                      <div className="mt-2 h-52" role="img" aria-label={`${c.title} over twelve months`}>
+                        <ResponsiveContainer>
+                          <AreaChart data={data} margin={{ left: 4, right: 8, top: 6 }}>
+                            <defs>
+                              <linearGradient id={`g-${c.key}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor={c.stroke} stopOpacity={0.35} />
+                                <stop offset="100%" stopColor={c.stroke} stopOpacity={0.02} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                            <XAxis dataKey="date" tickFormatter={(d: string) => new Date(d).toLocaleDateString('en-IN', { month: 'short' })} tick={{ fontSize: 11 }} />
+                            <YAxis domain={[(min: number) => Math.floor(min * 0.85), (max: number) => Math.ceil(max * 1.05)]} tickFormatter={(v: number) => inrShort(v * 100)} tick={{ fontSize: 11 }} width={64} />
+                            <Tooltip formatter={(v: number) => [inr(Math.round(v * 100)), c.title]} labelFormatter={(d: string) => dateIST(d)} />
+                            <Area type="monotone" dataKey="v" stroke={c.stroke} strokeWidth={2.5} fill={`url(#g-${c.key})`} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
               <ul className="mt-2 space-y-0.5 text-[11px] text-ink-muted">
                 {s.basis.map((b) => (

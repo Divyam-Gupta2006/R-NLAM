@@ -11,15 +11,17 @@ function toBig(p: Paise): bigint {
 }
 
 /** ₹12,34,567.89 with Indian digit grouping. */
+/** Whole rupees by default (rounded), ₹12,34,568; pass { paise: true } for ₹12,34,567.89. */
 export function inr(p: Paise, opts: { paise?: boolean } = {}): string {
-  const v = toBig(p);
+  let v = toBig(p);
+  if (!opts.paise) v = ((v < 0n ? v - 50n : v + 50n) / 100n) * 100n;
   const neg = v < 0n;
   const abs = neg ? -v : v;
   const rupees = (abs / 100n).toString();
   const last3 = rupees.slice(-3);
   const rest = rupees.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',');
   const whole = `${rest ? rest + ',' : ''}${last3}`;
-  const frac = opts.paise === false ? '' : `.${(abs % 100n).toString().padStart(2, '0')}`;
+  const frac = opts.paise ? `.${(abs % 100n).toString().padStart(2, '0')}` : '';
   return `${neg ? '-' : ''}₹${whole}${frac}`;
 }
 
@@ -68,9 +70,18 @@ export function pct(n: number | null | undefined, digits = 1): string {
   return `${n.toFixed(digits)}%`;
 }
 
-/** PRELIM_NOTIFIED → Prelim notified */
+// Kept in capitals when a code is turned into words (FRA_SETTLEMENT_CERTIFICATE → FRA settlement certificate).
+const ACRONYMS = new Set(['fra', 'sia', 'crz', 'rr', 'utr', 'pia', 'gis', 'sla', 'lar', 'cnr', 'ulpin', 'nh', 'pdf', 'otp', 'ifsc', 'dbt', 'gnss', 'esz', 'cfr']);
+const SPECIAL: Record<string, string> = { rr: 'R&R' };
+
+/** PRELIM_NOTIFIED → Prelim notified; FRA_CLAIM → FRA claim; RR_OFFICER → R&R officer */
 export function humanize(code: string | null | undefined): string {
   if (!code) return '—';
-  const s = code.replace(/_/g, ' ').toLowerCase();
+  const words = code
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .split(' ')
+    .map((w) => SPECIAL[w] ?? (ACRONYMS.has(w) ? w.toUpperCase() : w));
+  const s = words.join(' ');
   return s.charAt(0).toUpperCase() + s.slice(1);
 }

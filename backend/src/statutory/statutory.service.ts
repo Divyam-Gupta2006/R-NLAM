@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdo
 import { ClockKind, ClockStatus, NoticeKind, Prisma, RoleName } from '@prisma/client';
 import { AuthUser } from '../auth/auth.types';
 import { Clock } from '../common/clock';
-import { daysBetween, istDateString } from '../common/dates';
+import { daysBetween, istDateString, istHuman } from '../common/dates';
 import { parcelScope } from '../common/scope';
 import { DeliveredEvent, EVENT_BUS, EventBus } from '../events/event-bus';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
@@ -119,7 +119,7 @@ export class StatutoryService implements OnModuleInit, OnApplicationBootstrap, O
     return [
       {
         code: kind === 'DECLARATION_DEADLINE' ? 'DECLARATION_WINDOW_EXPIRED' : 'AWARD_PERIOD_EXPIRED',
-        message: `${KIND_LABEL[kind]} was due by ${istDateString(clock.dueOn)} (${daysBetween(clock.dueOn, ctx.now)} days ago). ${clock.consequence}`,
+        message: `${KIND_LABEL[kind]} was due by ${istHuman(clock.dueOn)} (${daysBetween(clock.dueOn, ctx.now)} days ago). ${clock.consequence}`,
         citation: clock.citation,
         overridable: true,
         unblockedBy: ['GOVERNMENT_EXTENSION_ORDER'],
@@ -195,7 +195,7 @@ export class StatutoryService implements OnModuleInit, OnApplicationBootstrap, O
         for (const role of [RoleName.DISTRICT_OFFICER, RoleName.STATE_ADMIN]) {
           await this.notifications.notify({
             title: `Missed: ${KIND_LABEL[c.kind]} (${parcelLabel})`,
-            message: `Was due ${istDateString(c.dueOn)}. ${c.consequence} (${c.citation})`,
+            message: `Was due ${istHuman(c.dueOn)}. ${c.consequence} (${c.citation})`,
             type: 'STATUTORY_DEADLINE',
             severity: 'CRITICAL',
             role,
@@ -215,7 +215,7 @@ export class StatutoryService implements OnModuleInit, OnApplicationBootstrap, O
       for (const role of recipients) {
         await this.notifications.notify({
           title: `T-${threshold}: ${KIND_LABEL[c.kind]} due in ${left} days (${parcelLabel})`,
-          message: `Due ${istDateString(c.dueOn)}. ${c.consequence} (${c.citation})`,
+          message: `Due ${istHuman(c.dueOn)}. ${c.consequence} (${c.citation})`,
           type: 'STATUTORY_DEADLINE',
           severity: threshold <= 7 ? 'CRITICAL' : threshold <= 30 ? 'WARNING' : 'INFO',
           role,

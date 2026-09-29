@@ -101,15 +101,15 @@ function IstClock() {
 }
 
 function ProjectsByStage({ rows }: { rows: CommandSummary['projectsByStage'] }) {
-  const data = rows.map((p) => ({ name: p.code, full: `${p.name} (${p.stateName})`, ...p.stages }));
+  const data = rows.map((p) => ({ label: `${p.code} · ${p.total}`, full: `${p.name} (${p.stateName}), ${p.total} parcels`, ...p.stages }));
   const used = STAGE_ORDER.filter((s) => rows.some((p) => p.stages[s] > 0));
   return (
     <div>
       <div className="h-[260px]" role="img" aria-label={`Parcels by stage for ${rows.length} projects`}>
         <ResponsiveContainer>
-          <BarChart data={data} layout="vertical" margin={{ top: 0, right: 12, bottom: 0, left: 8 }}>
-            <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11 }} allowDecimals={false} />
-            <YAxis type="category" dataKey="name" width={96} tick={{ fill: 'white', fontSize: 12, fontWeight: 600 }} />
+          <BarChart data={data} layout="vertical" stackOffset="expand" margin={{ top: 0, right: 12, bottom: 0, left: 8 }}>
+            <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11 }} tickFormatter={(v: number) => `${Math.round(v * 100)}%`} />
+            <YAxis type="category" dataKey="label" width={150} tick={{ fill: 'white', fontSize: 12, fontWeight: 600 }} />
             <Tooltip
               cursor={{ fill: 'rgba(255,255,255,0.06)' }}
               contentStyle={{ background: '#0b1f3a', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }}
@@ -192,7 +192,7 @@ export function CommandView() {
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[1fr_1.25fr]">
-              <Panel title="Projects by lifecycle stage" icon={<Timer className="h-4 w-4" />}>
+              <Panel title="Where each project stands (share of parcels by stage)" icon={<Timer className="h-4 w-4" />}>
                 <ProjectsByStage rows={s.projectsByStage} />
               </Panel>
               <Panel title="Top 10 stuck projects" icon={<AlertTriangle className="h-4 w-4" />} action={<Link href="/central/stuck" className="text-xs text-saffron underline">All briefs</Link>}>
@@ -243,7 +243,7 @@ export function CommandView() {
                         </p>
                         {e.overlaps.map((o) => (
                           <p key={o.layer} className="text-xs text-white/70">
-                            {o.overlapPct}% in {o.layer}; missing {o.missing.map((m) => humanize(m).toLowerCase()).join(', ')}
+                            {o.overlapPct}% in {o.layer}; missing {o.missing.map((m) => humanize(m).replace(/^[A-Z][a-z]/, (c) => c.toLowerCase())).join(', ')}
                           </p>
                         ))}
                       </li>

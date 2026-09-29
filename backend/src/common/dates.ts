@@ -35,6 +35,13 @@ export function istDateString(d: Date): string {
   return new Date(d.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** A date as people read it, in IST: "5 Nov 2026". For text; machine fields stay ISO. */
+export function istHuman(d: Date): string {
+  const [y, m, day] = istDateString(d).split('-').map(Number);
+  return `${day} ${MONTHS[m - 1]} ${y}`;
+}
+
 /** Parse YYYY-MM-DD as midnight IST. */
 export function parseIstDate(s: string): Date {
   const [y, m, day] = s.split('-').map(Number);

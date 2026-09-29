@@ -22,7 +22,7 @@ import { AiClient, ProposedField } from '../ai/ai.module';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser, R } from '../auth/auth.types';
 import { CurrentUser, Roles } from '../auth/decorators';
-import { parcelScope } from '../common/scope';
+import { parcelScope, projectScope } from '../common/scope';
 import { PrismaService } from '../prisma/prisma.service';
 import { STORAGE, StorageAdapter } from '../storage/storage';
 
@@ -76,8 +76,8 @@ export class DocumentsController {
   @ApiQuery({ name: 'projectId', required: false })
   @ApiQuery({ name: 'kind', required: false, enum: DocumentKind })
   list(@CurrentUser() user: AuthUser, @Query('parcelId') parcelId?: string, @Query('projectId') projectId?: string, @Query('kind') kind?: DocumentKind) {
-    const where: Prisma.DocumentWhereInput = { parcelId, projectId, kind };
-    if (parcelId) where.parcel = parcelScope(user);
+    // Parcel documents by parcel scope; project-level documents by project scope.
+    const where: Prisma.DocumentWhereInput = { parcelId, projectId, kind, OR: [{ parcel: parcelScope(user) }, { parcelId: null, project: projectScope(user) }] };
     return this.prisma.document.findMany({
       where,
       include: { parcel: { select: { parcelNumber: true, villageName: true } }, project: { select: { code: true } } },

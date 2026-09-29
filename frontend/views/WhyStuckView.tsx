@@ -305,7 +305,7 @@ export function WhyStuckView({ eyebrow }: { eyebrow?: string }) {
                   </div>
                   <p className="truncate text-xs text-ink-muted">{p.name}</p>
                   <p className="mt-1 text-xs">
-                    {p.bottlenecks} bottlenecks · {inrShort(p.exposurePaise)} · {num(p.families)} families
+                    {p.bottlenecks} {p.bottlenecks === 1 ? 'bottleneck' : 'bottlenecks'} · {inrShort(p.exposurePaise)} · {num(p.families)} families
                   </p>
                   {p.top && <p className="mt-1 line-clamp-2 text-xs text-ink-muted">Top: {p.top.title}</p>}
                 </Link>

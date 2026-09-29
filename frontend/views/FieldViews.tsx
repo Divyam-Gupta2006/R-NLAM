@@ -11,7 +11,7 @@ import { api, ApiError, qs } from '@/lib/api/client';
 import { useApi } from '@/lib/api/hooks';
 import type { Paged, Parcel } from '@/lib/api/types';
 import { accuracyBand, averageFixes, closeRing, EvidenceBundle, Fix, LngLat, ringAreaSqm, sealBundle, sha256Hex } from '@/lib/field/bundle';
-import { clearSynced, deviceId, lastSeen, listBundles, putBundle, QUEUE_EVENT, QueuedBundle, QueuedPhoto, syncNow } from '@/lib/field/queue';
+import { clearSynced, deviceId, lastSeen, listBundles, putBundle, QUEUE_EVENT, QueuedBundle, QueuedPhoto, resetDevice, syncNow } from '@/lib/field/queue';
 import { dateTimeIST, humanize } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -467,6 +467,17 @@ export function FieldSyncView() {
             </button>
             <button className="btn-ghost" disabled={!counts.SYNCED} onClick={() => void clearSynced()}>
               Clear synced
+            </button>
+            <button
+              className="btn-ghost text-danger"
+              title="Forget everything this device holds (for a clean demo retake)"
+              onClick={async () => {
+                if (!window.confirm('Forget every capture and cached parcel on this device?')) return;
+                await resetDevice();
+                window.location.reload();
+              }}
+            >
+              Reset this device
             </button>
           </div>
         }

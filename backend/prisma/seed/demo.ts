@@ -44,6 +44,16 @@ const FIRST = ['Ramesh', 'Suresh', 'Ganesh', 'Vitthal', 'Pandurang', 'Sunita', '
 const FATHER = ['Bhaurao', 'Shankarrao', 'Maroti', 'Dadarao', 'Keshavrao', 'Motiram', 'Bapurao', 'Wamanrao', 'Rambhau', 'Narayan'];
 const SURNAME = ['Patil', 'Wankhede', 'Deshmukh', 'Thakre', 'Bhoyar', 'Kale', 'Raut', 'Ingle', 'Gawande', 'Meshram', 'Dhote', 'Chaudhari', 'Mohod', 'Tayde', 'Kolhe', 'Burade'];
 
+// Regional names for the other demo states (same number of random picks, so
+// Maharashtra's story data is unchanged).
+const REGIONAL: Record<string, { first: string[]; middle: string[]; last: string[]; fatherIsMiddle?: boolean }> = {
+  GJ: { first: ['Bhavesh', 'Jignesh', 'Kanubhai', 'Hasmukh', 'Nirmala', 'Hansaben', 'Geeta', 'Dilip', 'Jayesh', 'Manjula', 'Ramesh', 'Kokila'], middle: ['Kantilal', 'Ramanlal', 'Bhikhabhai', 'Dahyabhai', 'Maganlal', 'Somabhai', 'Chhaganlal'], last: ['Patel', 'Chaudhary', 'Thakor', 'Rabari', 'Desai', 'Parmar', 'Solanki', 'Prajapati'], fatherIsMiddle: true },
+  KA: { first: ['Basavaraju', 'Mahadevappa', 'Nagaraju', 'Siddaramu', 'Lakshmamma', 'Gowramma', 'Shivanna', 'Manjunath', 'Chandrakala', 'Puttaswamy', 'Kempamma', 'Ravi'], middle: ['Siddaiah', 'Ningaiah', 'Madaiah', 'Chikkanna', 'Doddaiah', 'Basappa'], last: ['Gowda', 'Naik', 'Swamy', 'Shetty', 'Hegde', 'Kumar'], fatherIsMiddle: true },
+  RJ: { first: ['Bhanwar', 'Mangi', 'Sohan', 'Kesar', 'Gopal', 'Hanuman', 'Madan', 'Kamla', 'Laxmi', 'Bhagwati', 'Om', 'Santosh'], middle: ['Lal', 'Ram', 'Singh', 'Das'], last: ['Bishnoi', 'Meghwal', 'Godara', 'Saran', 'Rajpurohit', 'Choudhary', 'Bhati'] },
+  UP: { first: ['Rajendra', 'Suresh', 'Rakesh', 'Mahesh', 'Vinod', 'Harpal', 'Sunita', 'Kamla', 'Pushpa', 'Anita', 'Ramvir', 'Satish'], middle: ['Kumar', 'Prasad', 'Singh', 'Pal'], last: ['Yadav', 'Sharma', 'Chauhan', 'Nagar', 'Bhati', 'Gurjar', 'Tyagi'] },
+  MP: { first: ['Kailash', 'Mangilal', 'Dilip', 'Santosh', 'Gyarsilal', 'Bhagwan', 'Sunil', 'Rekha', 'Kamla', 'Radha', 'Jamna', 'Ramesh'], middle: ['Lal', 'Das', 'Singh', 'Ram'], last: ['Patidar', 'Yadav', 'Chouhan', 'Solanki', 'Barela', 'Muwel', 'Jat'] },
+};
+
 const TO_DEVA: Record<string, string> = {
   Ramkumar: 'रामकुमार', Bhaurao: 'भाऊराव', Wankhede: 'वानखेडे',
 };
@@ -341,14 +351,15 @@ async function seedEntitlements(ctx: Ctx) {
 async function makePerson(ctx: Ctx, villageCode: string, overrides: Partial<Prisma.PersonCreateInput> = {}) {
   const { rng } = ctx;
   ctx.counters.person++;
-  const first = rng.pick(FIRST);
-  const father = rng.pick(FATHER);
-  const surname = rng.pick(SURNAME);
+  const region = REGIONAL[villageCode.slice(0, 2)];
+  const first = rng.pick(region?.first ?? FIRST);
+  const father = rng.pick(region?.middle ?? FATHER);
+  const surname = rng.pick(region?.last ?? SURNAME);
   return ctx.prisma.person.create({
     data: {
       name: `${first} ${father} ${surname}`,
       nameScript: 'Latn',
-      fatherName: `${father} ${surname}`,
+      fatherName: region && !region.fatherIsMiddle ? null : `${father} ${surname}`,
       villageCode,
       idHash: hashId(`person-${ctx.counters.person}`),
       source: 'LAND_RECORDS',
@@ -1062,7 +1073,7 @@ async function seedDocument(ctx: Ctx, parcelId: string, projectId: string, kind:
   const key = `documents/seed/${referenceNo.replace(/[^A-Za-z0-9-]/g, '_')}.pdf`;
   const stored = await storage.put(key, makePdf(title, [`Reference: ${referenceNo}`, `Issued: ${issuedOn.toISOString().slice(0, 10)}`, ...lines]));
   const doc = await ctx.prisma.document.create({
-    data: { kind, title, fileName: key.split('/').pop()!, storageBackend: stored.backend, storageKey: key, sha256: stored.sha256, mimeType: 'application/pdf', sizeBytes: stored.sizeBytes, parcelId, projectId, referenceNo, issuedOn, uploadedById: ctx.users.collectorYavatmal.id },
+    data: { kind, title, fileName: key.split('/').pop()!, storageBackend: stored.backend, storageKey: key, sha256: stored.sha256, mimeType: 'application/pdf', sizeBytes: stored.sizeBytes, parcelId, projectId, referenceNo, issuedOn, createdAt: issuedOn, uploadedById: ctx.users.collectorYavatmal.id },
   });
   ctx.history.audit({ action: 'DOCUMENT_UPLOADED', entityType: 'Document', entityId: doc.id, at: issuedOn, actor: actor(ctx.users.collectorYavatmal), newState: { kind, sha256: stored.sha256, parcelId, referenceNo } });
   return doc;

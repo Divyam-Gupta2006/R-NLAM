@@ -3,8 +3,8 @@ import { BriefDecision, ClockKind, RoleName } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../auth/auth.types';
 import { Clock } from '../common/clock';
-import { addDays, daysBetween, istDateString } from '../common/dates';
-import { formatInr } from '../common/money';
+import { addDays, daysBetween, istDateString, istHuman } from '../common/dates';
+import { formatRupees } from '../common/money';
 import { parcelScope, projectScope } from '../common/scope';
 import { GisGateService } from '../gis/gis-gate.service';
 import { savingsIfActed } from '../liability/liability';
@@ -164,13 +164,13 @@ export class WhyStuckService {
             citation: m.citation,
             unverified: m.unverified,
           })),
-          ...(awardClock ? [{ label: 'Award deadline', detail: `Due ${istDateString(awardClock.dueOn)}; ${awardClock.consequence}`, citation: awardClock.citation }] : []),
+          ...(awardClock ? [{ label: 'Award deadline', detail: `Due ${istHuman(awardClock.dueOn)}; ${awardClock.consequence}`, citation: awardClock.citation }] : []),
         ],
         brief: {
           headline: `Forest and rights clearance is holding up ${p.parcelNumber}`,
           blocked: `The s.23 award for parcel ${p.parcelNumber} (${p.villageName}), and its possession.`,
           why: missing.map((m) => `It overlaps ${m.layerName} by ${m.overlapPct}% and ${m.missing.map(DOC_LABEL).join(' and ')} ${m.missing.length > 1 ? 'are' : 'is'} not on file (${m.citation}).`),
-          impact: `${formatInr(l?.additionalAccruedPaise ?? 0n)} additional amount accrued so far, ${formatInr(l?.additionalDailyPaise ?? 0n)} more every day; ${p.familiesAffected} families wait for their award.`,
+          impact: `${formatRupees(l?.additionalAccruedPaise ?? 0n)} additional amount accrued so far, ${formatRupees(l?.additionalDailyPaise ?? 0n)} more every day; ${p.familiesAffected} families wait for their award.`,
           action: `Obtain ${[...new Set(missing.flatMap((m) => m.missing))].map(DOC_LABEL).join(' and ')} and upload them to the parcel; the award unblocks automatically. If a Government order permits proceeding meanwhile, a senior officer can record an override with its reference.`,
           owner: ownerFor(RoleName.DISTRICT_OFFICER, p.districtCode, p.stateCode),
           deadline: awardClock ? istDateString(awardClock.dueOn) : null,
@@ -211,23 +211,23 @@ export class WhyStuckService {
         leadTimeDays: objections.length ? LEAD_TIME_DAYS.OBJECTION_HEARINGS : undefined,
         leadTimeWhy: objections.length ? 'to hear and dispose of the pending objections (planning assumption)' : undefined,
         evidence: [
-          { label: 'Declaration deadline', detail: `Due ${istDateString(c.dueOn)}. ${c.consequence}`, citation: c.citation },
+          { label: 'Declaration deadline', detail: `Due ${istHuman(c.dueOn)}. ${c.consequence}`, citation: c.citation },
           ...(objections.length ? [{ label: `${objections.length} objection(s) undisposed`, detail: objections.map((o) => `${o.parcelNumber}: ${o.category.replace(/_/g, ' ').toLowerCase()} (${o.status.replace(/_/g, ' ').toLowerCase()})`).join('; '), citation: 'RFCTLARR 2013, s.15(2)' }] : []),
         ],
         brief: {
-          headline: `${villages.join(' & ')}: the preliminary notification lapses on ${istDateString(c.dueOn)} without a s.19 declaration`,
+          headline: `${villages.join(' & ')}: the preliminary notification lapses on ${istHuman(c.dueOn)} without a s.19 declaration`,
           blocked: `The s.19 declaration for ${ps.length} parcels (${villages.join(', ')}), and everything after it.`,
           why: [
             `The s.11 notification is deemed rescinded if no declaration follows within the rule-pack period (${c.citation}); ${d < 0 ? `that date passed ${-d} days ago` : `${d} days remain`}.`,
-            ...(objections.length ? [`${objections.length} objection(s) under s.15 must be heard and disposed of first${nextHearing ? `; the next hearing is ${istDateString(nextHearing)}` : ''}.`] : []),
+            ...(objections.length ? [`${objections.length} objection(s) under s.15 must be heard and disposed of first${nextHearing ? `; the next hearing is ${istHuman(nextHearing)}` : ''}.`] : []),
           ],
-          impact: `${families} families and ${ps.length} parcels would have to restart acquisition, putting at least ${formatInr(exposure)} of acquisition value at risk.`,
+          impact: `${families} families and ${ps.length} parcels would have to restart acquisition, putting at least ${formatRupees(exposure)} of acquisition value at risk.`,
           action: objections.length
-            ? `Hold the pending hearings${nextHearing ? ` (next ${istDateString(nextHearing)})` : ''}, dispose of the ${objections.length} objection(s), then publish the s.19 declaration. Parcels with open objections are left out automatically, so the rest can be declared now.`
+            ? `Hold the pending hearings${nextHearing ? ` (next ${istHuman(nextHearing)})` : ''}, dispose of the ${objections.length} objection(s), then publish the s.19 declaration. Parcels with open objections are left out automatically, so the rest can be declared now.`
             : `Publish the s.19 declaration for these parcels now.`,
           owner: ownerFor(RoleName.DISTRICT_OFFICER, ps[0].districtCode, ps[0].stateCode),
           deadline: istDateString(addDays(c.dueOn, -1)),
-          deadlineWhy: `One day before the s.19(7) lapse date (${istDateString(c.dueOn)})`,
+          deadlineWhy: `One day before the s.19(7) lapse date (${istHuman(c.dueOn)})`,
         },
       });
     }
@@ -258,12 +258,12 @@ export class WhyStuckService {
         daysToDeadline: d,
         accruing: false,
         legalBar: false,
-        evidence: [{ label: 'Award deadline', detail: `Due ${istDateString(c.dueOn)}. ${c.consequence}`, citation: c.citation }],
+        evidence: [{ label: 'Award deadline', detail: `Due ${istHuman(c.dueOn)}. ${c.consequence}`, citation: c.citation }],
         brief: {
-          headline: `Every day without these awards adds ${formatInr(perDay)} to the bill`,
+          headline: `Every day without these awards adds ${formatRupees(perDay)} to the bill`,
           blocked: `Awards (s.23) for ${ps.length} declared parcels.`,
-          why: [`The additional amount under s.30(3) runs at 12% a year on market value until the award.`, `The awards must be made by ${istDateString(c.dueOn)} or the proceedings lapse (${c.citation}).`],
-          impact: `${formatInr(toDeadline)} more if the awards wait for the deadline; ${ps.reduce((s, p) => s + p.familiesAffected, 0)} families wait for compensation.`,
+          why: [`The additional amount under s.30(3) runs at 12% a year on market value until the award.`, `The awards must be made by ${istHuman(c.dueOn)} or the proceedings lapse (${c.citation}).`],
+          impact: `${formatRupees(toDeadline)} more if the awards wait for the deadline; ${ps.reduce((s, p) => s + p.familiesAffected, 0)} families wait for compensation.`,
           action: `Finalise valuations and declare the awards; each parcel's award screen previews the calculation line by line.`,
           owner: ownerFor(RoleName.DISTRICT_OFFICER, ps[0].districtCode, ps[0].stateCode),
           deadline: istDateString(c.dueOn),
@@ -292,13 +292,13 @@ export class WhyStuckService {
         daysToDeadline: null, // no deadline: money is lost every day (accruing)
         accruing: true,
         legalBar: false,
-        evidence: [{ label: 'Unpaid since possession', detail: `${running.map((f) => `${f.beneficiary}: ${formatInr(f.principalPaise)}`).join('; ')}. Possession ${istDateString(running[0].possessionOn)}.`, citation: 'RFCTLARR 2013, s.80' }],
+        evidence: [{ label: 'Unpaid since possession', detail: `${running.map((f) => `${f.beneficiary}: ${formatRupees(f.principalPaise)}`).join('; ')}. Possession ${istHuman(running[0].possessionOn)}.`, citation: 'RFCTLARR 2013, s.80' }],
         brief: {
-          headline: `${formatInr(l!.s80DailyPaise)} of interest a day on ${p.parcelNumber}`,
-          blocked: `Nothing is blocked, but money is being lost: possession was taken on ${istDateString(running[0].possessionOn)} before ${running.length} holder(s) were paid.`,
+          headline: `${formatRupees(l!.s80DailyPaise)} of interest a day on ${p.parcelNumber}`,
+          blocked: `Nothing is blocked, but money is being lost: possession was taken on ${istHuman(running[0].possessionOn)} before ${running.length} holder(s) were paid.`,
           why: [`Compensation unpaid at possession carries interest at 9% a year, rising to 15% after one year (s.80).`],
-          impact: `${formatInr(l!.s80OutstandingPaise)} interest accrued; ${formatInr(nextYear)} more in the next 12 months if unpaid; ${formatInr(unpaid)} principal owed.`,
-          action: `Pay the outstanding ${formatInr(unpaid)} now (Finance → Ready to pay). Interest stops on the day of payment.`,
+          impact: `${formatRupees(l!.s80OutstandingPaise)} interest accrued; ${formatRupees(nextYear)} more in the next 12 months if unpaid; ${formatRupees(unpaid)} principal owed.`,
+          action: `Pay the outstanding ${formatRupees(unpaid)} now (Finance → Ready to pay). Interest stops on the day of payment.`,
           owner: ownerFor(RoleName.FINANCE_OFFICER, p.districtCode, p.stateCode),
           deadline: istDateString(now),
           deadlineWhy: 'Interest accrues daily',
@@ -330,14 +330,14 @@ export class WhyStuckService {
             leadTimeDays: c.status === 'ON_HOLD' ? LEAD_TIME_DAYS.IDENTITY_RECONCILIATION : undefined,
             leadTimeWhy: c.status === 'ON_HOLD' ? 'to reconcile the beneficiary identity (planning assumption)' : undefined,
             evidence: [
-              { label: c.status === 'ON_HOLD' ? 'Held' : 'Failed credit', detail: `${formatInr(c.amountPaise)} to ${c.beneficiaryName}.`, citation: clk?.citation },
-              ...(clk ? [{ label: 'Payment deadline', detail: `${istDateString(clk.dueOn)} (${d !== null && d < 0 ? `${-d} days ago` : `${d} days left`})`, citation: clk.citation }] : []),
+              { label: c.status === 'ON_HOLD' ? 'Held' : 'Failed credit', detail: `${formatRupees(c.amountPaise)} to ${c.beneficiaryName}.`, citation: clk?.citation },
+              ...(clk ? [{ label: 'Payment deadline', detail: `${istHuman(clk.dueOn)} (${d !== null && d < 0 ? `${-d} days ago` : `${d} days left`})`, citation: clk.citation }] : []),
             ],
             brief: {
               headline: c.status === 'ON_HOLD' ? `${c.beneficiaryName}'s compensation is on hold` : `${c.beneficiaryName}'s payment bounced`,
-              blocked: `${formatInr(c.amountPaise)} for parcel ${p.parcelNumber}; the parcel cannot move to possession until every holder is paid.`,
+              blocked: `${formatRupees(c.amountPaise)} for parcel ${p.parcelNumber}; the parcel cannot move to possession until every holder is paid.`,
               why: [c.status === 'ON_HOLD' ? 'The beneficiary record could not be matched with the land record (name differs across records or scripts).' : 'The bank rejected the credit (account closed or details wrong).'],
-              impact: `${formatInr(c.amountPaise)} owed; the s.38 payment deadline ${d !== null && d < 0 ? `was missed ${-d} days ago` : 'is running'}.`,
+              impact: `${formatRupees(c.amountPaise)} owed; the s.38 payment deadline ${d !== null && d < 0 ? `was missed ${-d} days ago` : 'is running'}.`,
               action: c.status === 'ON_HOLD' ? 'Confirm the beneficiary’s identity in the reconciliation queue, then release the hold and pay.' : 'Collect corrected bank details from the beneficiary and retry the payment.',
               owner: ownerFor(c.status === 'ON_HOLD' ? RoleName.DISTRICT_OFFICER : RoleName.FINANCE_OFFICER, p.districtCode, p.stateCode),
               deadline: clk ? istDateString(clk.dueOn) : null,
@@ -362,7 +362,7 @@ export class WhyStuckService {
         key: `PAY:${k}`,
         type: 'PAYMENT_OVERDUE',
         projectId: rows[0].p.projectId,
-        title: `${rows.length} awarded beneficiaries unpaid in ${rows[0].p.villageName}${d < 0 ? `, ${-d} days past the s.38 deadline` : ''}`,
+        title: `${rows.length} awarded ${rows.length === 1 ? 'beneficiary' : 'beneficiaries'} unpaid in ${rows[0].p.villageName}${d < 0 ? `, ${-d} days past the s.38 deadline` : ''}`,
         parcels: parcelsIn.map(ref),
         families: parcelsIn.reduce((s, p) => s + p.familiesAffected, 0),
         exposurePaise: amount,
@@ -371,12 +371,12 @@ export class WhyStuckService {
         daysToDeadline: d,
         accruing: false,
         legalBar: false,
-        evidence: [{ label: 'Unpaid lines', detail: rows.map((r) => `${r.p.parcelNumber} ${r.c.beneficiaryName}: ${formatInr(r.c.amountPaise)} (${r.c.status.toLowerCase()})`).join('; '), citation: 'RFCTLARR 2013, s.38(1)' }],
+        evidence: [{ label: 'Unpaid lines', detail: rows.map((r) => `${r.p.parcelNumber} ${r.c.beneficiaryName}: ${formatRupees(r.c.amountPaise)} (${r.c.status.toLowerCase()})`).join('; '), citation: 'RFCTLARR 2013, s.38(1)' }],
         brief: {
-          headline: `${formatInr(amount)} awarded in ${rows[0].p.villageName} has not reached ${rows.length} beneficiaries`,
+          headline: `${formatRupees(amount)} awarded in ${rows[0].p.villageName} has not reached ${rows.length === 1 ? 'the beneficiary' : `${rows.length} beneficiaries`}`,
           blocked: `Possession of ${parcelsIn.length} parcel(s): the Act allows it only after full payment.`,
           why: [`Compensation must be paid or tendered within three months of the award (s.38(1)); the earliest deadline ${d < 0 ? `passed ${-d} days ago` : `is in ${d} days`}.`, 'No interest accrues before possession, but the land cannot be handed to the project.'],
-          impact: `${formatInr(amount)} owed to ${rows.length} beneficiaries; ${parcelsIn.reduce((s, p) => s + p.familiesAffected, 0)} families waiting.`,
+          impact: `${formatRupees(amount)} owed to ${rows.length} ${rows.length === 1 ? 'beneficiary' : 'beneficiaries'}; ${parcelsIn.reduce((s, p) => s + p.familiesAffected, 0)} families waiting.`,
           action: approvedOnly ? 'Release payment for the approved lines (Finance → Ready to pay).' : 'Approve the assessed lines, then release payment.',
           owner: ownerFor(approvedOnly ? RoleName.FINANCE_OFFICER : RoleName.DISTRICT_OFFICER, rows[0].p.districtCode, rows[0].p.stateCode),
           deadline: istDateString(earliest),
@@ -405,12 +405,12 @@ export class WhyStuckService {
         daysToDeadline: d,
         accruing: false,
         legalBar: true,
-        evidence: [{ label: 'Undelivered', detail: pending.map((g) => `${g.entitlement.name} (${g.family})`).join('; '), citation: 'RFCTLARR 2013, s.38(1)' }, ...(clk ? [{ label: 'R&R deadline', detail: `${istDateString(clk.dueOn)}`, citation: clk.citation }] : [])],
+        evidence: [{ label: 'Undelivered', detail: pending.map((g) => `${g.entitlement.name} (${g.family})`).join('; '), citation: 'RFCTLARR 2013, s.38(1)' }, ...(clk ? [{ label: 'R&R deadline', detail: `${istHuman(clk.dueOn)}`, citation: clk.citation }] : [])],
         brief: {
           headline: `Paid, but the land cannot be taken: ${pending.length} R&R entitlement(s) still due on ${p.parcelNumber}`,
           blocked: `Possession of parcel ${p.parcelNumber} (${p.villageName}).`,
           why: ['Possession is lawful only after R&R entitlements are delivered (s.38(1)).'],
-          impact: `${formatInr(amount)} of entitlements to ${p.familiesAffected} families; the project cannot use the land.`,
+          impact: `${formatRupees(amount)} of entitlements to ${p.familiesAffected} families; the project cannot use the land.`,
           action: 'Deliver the listed entitlements (R&R → Delivery) and record each; possession then unblocks.',
           owner: ownerFor(RoleName.RR_OFFICER, p.districtCode, p.stateCode),
           deadline: clk ? istDateString(clk.dueOn) : null,
@@ -433,7 +433,7 @@ export class WhyStuckService {
       const nextHearing = hearings[0] ?? null;
       const caseEvidence = cases.map((c) => ({
         label: `${c.caseNumber}, ${c.courtName}`,
-        detail: `${c.subject}. ${c.stayOrder ? 'Order of stay / status quo in force. ' : ''}${c.nextHearingOn ? `Next hearing ${istDateString(c.nextHearingOn)}.` : ''} Link confirmed by an officer${c.isSynthetic ? ' (synthetic eCourts record)' : ''}.`,
+        detail: `${c.subject}. ${c.stayOrder ? 'Order of stay / status quo in force. ' : ''}${c.nextHearingOn ? `Next hearing ${istHuman(c.nextHearingOn)}.` : ''} Link confirmed by an officer${c.isSynthetic ? ' (synthetic eCourts record)' : ''}.`,
         citation: `CNR ${c.cnr}`,
       }));
       const pending = p._count.caseLinks;
@@ -462,8 +462,8 @@ export class WhyStuckService {
               headline: `A court order holds up ${p.parcelNumber}: ${stay.caseNumber} (${stay.courtName})`,
               blocked: `Any step on parcel ${p.parcelNumber} that the order covers.`,
               why: [`${stay.subject}.`, 'The order binds the Collector until it is varied or the case is disposed of.'],
-              impact: `${p.familiesAffected} families; ${formatInr(valueAtRisk(p))} of acquisition value is held up.`,
-              action: `Brief the government pleader before the hearing${stay.nextHearingOn ? ` on ${istDateString(stay.nextHearingOn)}` : ''}; fix what the petition complains of so the order can be vacated; take no step the order forbids.`,
+              impact: `${p.familiesAffected} families; ${formatRupees(valueAtRisk(p))} of acquisition value is held up.`,
+              action: `Brief the government pleader before the hearing${stay.nextHearingOn ? ` on ${istHuman(stay.nextHearingOn)}` : ''}; fix what the petition complains of so the order can be vacated; take no step the order forbids.`,
               owner: ownerFor(RoleName.DISTRICT_OFFICER, p.districtCode, p.stateCode),
               deadline: stay.nextHearingOn ? istDateString(stay.nextHearingOn) : null,
               deadlineWhy: stay.nextHearingOn ? `next hearing in ${stay.caseNumber}` : 'No hearing date listed',
@@ -475,9 +475,9 @@ export class WhyStuckService {
                 cases.length ? `A title suit is pending: ${cases.map((c) => `${c.caseNumber} (${c.courtName})`).join('; ')}.` : 'The objection was escalated after the hearing because a civil suit is said to be pending.',
                 ...(title ? ['The award cannot be made while the s.15 objection is open.'] : []),
               ],
-              impact: `${p.familiesAffected} families; ${clk ? `the award must be made by ${istDateString(clk.dueOn)} or the proceedings lapse` : 'the award cannot proceed'}.`,
+              impact: `${p.familiesAffected} families; ${clk ? `the award must be made by ${istHuman(clk.dueOn)} or the proceedings lapse` : 'the award cannot proceed'}.`,
               action: cases.length
-                ? `Seek an early hearing${nextHearing ? ` (next listed ${istDateString(nextHearing)})` : ''}; consider making the award and depositing the disputed share with the Authority so the dispute does not stop the award; dispose of the objection.`
+                ? `Seek an early hearing${nextHearing ? ` (next listed ${istHuman(nextHearing)})` : ''}; consider making the award and depositing the disputed share with the Authority so the dispute does not stop the award; dispose of the objection.`
                 : 'Confirm the court case against the parcel (Court case links), seek an early hearing or consider depositing the disputed share with the Authority, and dispose of the objection.',
               owner: ownerFor(RoleName.DISTRICT_OFFICER, p.districtCode, p.stateCode),
               deadline: clk ? istDateString(clk.dueOn) : nextHearing ? istDateString(nextHearing) : null,

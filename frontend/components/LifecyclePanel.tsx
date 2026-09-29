@@ -53,9 +53,10 @@ export function LifecyclePanel({ entityType, entityId, onChanged, showHistory = 
                         </button>
                       )}
                     </div>
-                    {o.blockers.length > 0 && (
+                    {/* An action done from its own screen creates its own record ("no award yet" is expected); show only real blockers. */}
+                    {(o.domainOnly ? o.blockers.filter((b) => !b.code.startsWith('NO_')) : o.blockers).length > 0 && (
                       <div className="mt-2">
-                        <BlockerList blockers={o.blockers} compact />
+                        <BlockerList blockers={o.domainOnly ? o.blockers.filter((b) => !b.code.startsWith('NO_')) : o.blockers} compact />
                       </div>
                     )}
                   </li>

@@ -38,6 +38,12 @@ export function formatInr(paise: bigint): string {
   return `${neg ? '-' : ''}₹${rest ? rest + ',' : ''}${last3}.${p}`;
 }
 
+/** Whole rupees for sentences people read aloud: 123456789n → "₹12,34,568". */
+export function formatRupees(paise: bigint): string {
+  const f = formatInr(divRound(paise, 100n) * 100n);
+  return f.slice(0, -3);
+}
+
 /**
  * JSON encoding for BigInt: a number when it is exactly representable
  * (every realistic paise amount, up to ~₹90 lakh crore), otherwise a string.

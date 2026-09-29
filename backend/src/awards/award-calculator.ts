@@ -1,5 +1,5 @@
 import { applyBasisPoints, divRound } from '../common/money';
-import { daysBetween, istDateString } from '../common/dates';
+import { daysBetween, istDateString, istHuman } from '../common/dates';
 
 /**
  * Money rules for one award. Supplied by the statutory rule engine (6.1) from
@@ -93,7 +93,7 @@ export function calculateAward(input: AwardInputs, rules: AwardRules): AwardBrea
         key: 'additional',
         label: 'Additional amount',
         amountPaise: additionalAmountPaise,
-        formula: `${rules.additionalBpPerYear / 100}% p.a. on market value × ${additionalDays} days (${istDateString(input.additionalFrom)} → ${istDateString(input.cutoffDate)})`,
+        formula: `${rules.additionalBpPerYear / 100}% p.a. on market value × ${additionalDays} days (${istHuman(input.additionalFrom)} → ${istHuman(input.cutoffDate)})`,
         citation: rules.additionalCitation,
       },
       { key: 'total', label: 'Total award', amountPaise: totalPaise, formula: 'compensation + solatium + additional amount' },

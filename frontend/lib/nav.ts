@@ -36,6 +36,7 @@ export const PORTALS: Portal[] = [
           { label: 'Statutory calendar', href: '/central/statutory', icon: 'Calendar' },
           { label: 'Interest liability', href: '/central/liability', icon: 'IndianRupee' },
           { label: 'GIS consent gate', href: '/central/consent', icon: 'ShieldAlert' },
+          { label: 'Change detection', href: '/central/change-detection', icon: 'ScanSearch' },
           { label: 'Owner reconciliation', href: '/central/reconciliation', icon: 'Fingerprint' },
           { label: 'Court case links', href: '/central/court-links', icon: 'Gavel' },
           { label: 'Ask the Act', href: '/central/ask-the-act', icon: 'BookOpenCheck' },
@@ -138,6 +139,7 @@ export const PORTALS: Portal[] = [
           { label: 'Ask the Act', href: '/district/ask-the-act', icon: 'BookOpenCheck' },
           { label: 'Field verification', href: '/district/field', icon: 'Smartphone' },
           { label: 'Field evidence', href: '/district/field-evidence', icon: 'Satellite' },
+          { label: 'Change detection', href: '/district/change-detection', icon: 'ScanSearch' },
         ],
       },
     ],
@@ -220,6 +222,7 @@ export const PORTALS: Portal[] = [
         items: [
           { label: 'Parcel map', href: '/gis/parcels', icon: 'Map' },
           { label: 'Consent gate', href: '/gis/consent', icon: 'ShieldAlert' },
+          { label: 'Change detection', href: '/gis/change-detection', icon: 'ScanSearch' },
           { label: 'Projects', href: '/gis/projects', icon: 'FolderKanban' },
           { label: 'Data quality', href: '/gis/quality', icon: 'ShieldCheck' },
           { label: 'Import', href: '/gis/import', icon: 'Upload' },

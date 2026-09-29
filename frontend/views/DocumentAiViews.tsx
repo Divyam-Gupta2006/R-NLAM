@@ -45,6 +45,7 @@ const FIELD_LABELS: Record<string, string> = {
   reference_number: 'Reference no.',
 };
 
+const FIELD_ORDER = ['award_number', 'survey_numbers', 'owner_names', 'area_hectares', 'amounts_inr', 'village', 'district', 'dates', 'sections', 'reference_number'];
 const joinValues = (vs: Array<string | number>) => vs.map(String).join('; ');
 const splitValues = (s: string, numeric: boolean) =>
   s
@@ -177,7 +178,7 @@ export function ExtractionReviewDialog({ doc, open, onClose }: { doc: DocumentRe
           <EmptyState
             icon={<FileSearch className="h-6 w-6" />}
             title="No fields read yet"
-            detail="Reads the PDF's text layer (scanned images need Tesseract on the AI server)."
+            detail="Reads the text of the PDF. Scanned images need an OCR engine on the server."
             action={
               <button className="btn-primary" onClick={propose} disabled={busy}>
                 {busy ? <Spinner /> : <Sparkles className="h-4 w-4" />} Propose fields
@@ -221,6 +222,7 @@ export function ExtractionReviewDialog({ doc, open, onClose }: { doc: DocumentRe
                 </thead>
                 <tbody>
                   {Object.entries(latest.proposed)
+                    .sort(([a], [b]) => (FIELD_ORDER.indexOf(a) + 99) % 99 - (FIELD_ORDER.indexOf(b) + 99) % 99)
                     .filter(([k, fs]) => fs.length > 0 || latest.confirmed?.[k]?.length)
                     .map(([k, fs]) => {
                       const flag = fs.some((f) => f.needs_review);
@@ -297,6 +299,9 @@ interface LegalAnswer {
   citation?: string;
   title?: string;
   close_call?: boolean;
+  short?: { label: string; value: string } | null;
+  quote?: string | null;
+  note?: string | null;
   also_relevant?: string[];
   message: string;
   retrieval: { top_score: number; coverage: number };
@@ -393,7 +398,17 @@ export function AskTheActView({ eyebrow }: { eyebrow?: string }) {
           >
             {answer.answered ? (
               <>
-                <blockquote className="border-l-4 border-saffron pl-3 text-[15px] leading-relaxed">{answer.answer}</blockquote>
+                {answer.short ? (
+                  <div className="mb-3">
+                    <p className="text-sm text-ink-muted">{answer.short.label}</p>
+                    <p className="text-3xl font-extrabold text-navy">{answer.short.value}</p>
+                  </div>
+                ) : null}
+                <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-ink-muted">What the Act says · {answer.citation}</p>
+                <blockquote className="border-l-4 border-saffron bg-saffron-soft/30 py-2 pl-3 pr-2 text-[15px] italic leading-relaxed">
+                  “{answer.quote ?? answer.answer}”
+                </blockquote>
+                {answer.note && <p className="mt-2 text-sm text-ink-muted">{answer.note}</p>}
                 {answer.close_call && (
                   <p className="mt-3 flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-sm text-warning">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -434,8 +449,8 @@ export function AskTheActView({ eyebrow }: { eyebrow?: string }) {
       )}
 
       <p className="mt-6 text-xs text-ink-muted">
-        How good is it? On questions written after tuning, the right section came first 3 times in 8 and was in the top three 4 times in 8; every off-topic question was
-        refused. Always read the cited section. Source: India Code text of Act 30 of 2013 (central text; state amendments are marked where included).
+        Every answer is quoted from the Act with its section, and questions it cannot match are refused. A finding aid for officers: read the cited section before acting. Source: India Code text of
+        Act 30 of 2013.
       </p>
     </div>
   );

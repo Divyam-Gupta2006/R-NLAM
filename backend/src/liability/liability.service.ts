@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { AuthUser } from '../auth/auth.types';
 import { Clock } from '../common/clock';
-import { addDays, addMonths, istDateString, parseIstDate } from '../common/dates';
+import { addDays, addMonths, istDateString, istHuman, parseIstDate } from '../common/dates';
 import { parcelScope } from '../common/scope';
 import { EVENT_BUS, EventBus } from '../events/event-bus';
 import { PrismaService } from '../prisma/prisma.service';
@@ -253,7 +253,7 @@ export class LiabilityService implements OnModuleInit {
           startOn: f.startOn,
           accruedPaise: liabilityAt([], [f], now).additionalAccruedPaise,
           savingPaise: savingsIfActed(f, actOn, days),
-          horizon: due ? `until s.25 deadline ${istDateString(due)}` : `${horizonDays} days`,
+          horizon: due ? `until s.25 deadline ${istHuman(due)}` : `${horizonDays} days`,
         };
       });
 

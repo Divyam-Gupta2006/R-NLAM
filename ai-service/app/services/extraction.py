@@ -47,6 +47,12 @@ def normalise(text: str) -> str:
 
 
 def _snippet(text: str, start: int, end: int, pad: int = 30) -> str:
+    """The line the value was read from (a whole line reads better than a cut window)."""
+    line_start = text.rfind("\n", 0, start) + 1
+    line_end = text.find("\n", end)
+    line_end = len(text) if line_end == -1 else line_end
+    if line_end - line_start <= 140:
+        return re.sub(r"\s+", " ", text[line_start:line_end]).strip()
     return re.sub(r"\s+", " ", text[max(0, start - pad) : min(len(text), end + pad)]).strip()
 
 

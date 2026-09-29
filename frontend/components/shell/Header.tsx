@@ -2,6 +2,7 @@
 
 import { Bell, ChevronDown, LogOut, Menu, Repeat, UserCircle2 } from 'lucide-react';
 import Link from 'next/link';
+import { LogoMark } from '../Logo';
 import { usePathname } from 'next/navigation';
 import React, { useEffect, useRef, useState } from 'react';
 import { homeFor, useSession, useUser } from '@/context/SessionContext';
@@ -43,9 +44,7 @@ export function Header({ onToggleNav }: { onToggleNav: () => void }) {
           <Menu className="h-5 w-5" />
         </button>
         <Link href={homeFor(user.role)} className="flex items-center gap-2.5">
-          <span aria-hidden className="grid h-8 w-8 place-items-center rounded-lg bg-white text-sm font-black text-navy">
-            R
-          </span>
+          <LogoMark size={32} onDark />
           <span className="leading-tight">
             <span className="block text-sm font-bold tracking-wide">R-NLAM</span>
             <span className="hidden text-[10px] text-white/70 sm:block">Connecting Land, Law &amp; People</span>

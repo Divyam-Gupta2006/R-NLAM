@@ -60,6 +60,11 @@ class Passage:
     title: str
     text: str
     source: str  # "act" | "rule-pack"
+    # Rule-pack entries only: the answer in a few words, and the Act's own words behind it.
+    short_label: str | None = None
+    short_value: str | None = None
+    quote: str | None = None
+    note: str | None = None
 
 
 def load_act() -> list[Passage]:
@@ -110,11 +115,20 @@ def load_schedules() -> list[Passage]:
     return out
 
 
+DOC_WORDS = {
+    "GRAM_SABHA_CONSENT": "Gram Sabha consent",
+    "FOREST_CLEARANCE": "forest clearance",
+    "FRA_SETTLEMENT_CERTIFICATE": "FRA settlement certificate",
+    "CRZ_CLEARANCE": "CRZ clearance",
+    "WILDLIFE_CLEARANCE": "wildlife clearance",
+}
+
+
 def _pretty(value, unit) -> str:
     if isinstance(value, (int, float)) and unit and "basis points" in unit:
         return f"{value / 100:g}%" + (" per annum" if "per annum" in unit else "")
     if isinstance(value, dict) and "requires" in value:
-        return ", ".join(v.replace("_", " ").lower() for v in value["requires"])
+        return ", ".join(DOC_WORDS.get(v, v.replace("_", " ").lower()) for v in value["requires"])
     if isinstance(value, list):
         return ", ".join(str(v) for v in value)
     return f"{value} {unit or ''}".strip()
@@ -129,7 +143,19 @@ def load_rule_packs() -> list[Passage]:
     for p in packs:
         for e in p.get("entries", []):
             text = f"{e['label']}: {_pretty(e['value'], e.get('unit'))}. {e.get('quote') or ''} {e.get('note') or ''}"
-            out.append(Passage(id=f"{p['code']}:{e['key']}", citation=e["citation"] + (" (unverified)" if e.get("unverified") else ""), title=f"{p['code']} · {e['label']}", text=text, source="rule-pack"))
+            out.append(
+                Passage(
+                    id=f"{p['code']}:{e['key']}",
+                    citation=e["citation"] + (" (unverified)" if e.get("unverified") else ""),
+                    title=f"{p['code']} · {e['label']}",
+                    text=text,
+                    source="rule-pack",
+                    short_label=e["label"],
+                    short_value=_pretty(e["value"], e.get("unit")),
+                    quote=(e.get("quote") or "").replace("\ufffd", "…").strip() or None,
+                    note=e.get("note"),
+                )
+            )
     return out
 
 
@@ -206,6 +232,10 @@ class LegalIndex:
             "answer": " … ".join(ordered),
             "citation": top.citation,
             "passage_id": top.id,
+            # For display: a few words, then the Act's own words (rule-pack entries carry both).
+            "short": {"label": top.short_label, "value": top.short_value} if top.short_value else None,
+            "quote": top.quote,
+            "note": top.note,
             "close_call": bool(close),
             "also_relevant": [p.citation for p in close],
             "title": top.title,

@@ -38,6 +38,14 @@ export interface GateItem {
   unverified: boolean;
 }
 
+const DOC_LABEL: Partial<Record<DocumentKind, string>> = {
+  FOREST_CLEARANCE: 'forest clearance',
+  FRA_SETTLEMENT_CERTIFICATE: 'FRA settlement certificate',
+  GRAM_SABHA_CONSENT: 'Gram Sabha consent',
+  CRZ_CLEARANCE: 'CRZ clearance',
+  WILDLIFE_CLEARANCE: 'wildlife clearance',
+};
+
 const KIND_LABEL: Record<ConstraintKind, string> = {
   FOREST: 'forest land',
   SCHEDULED_AREA: 'a Scheduled Area (Fifth Schedule)',
@@ -123,7 +131,7 @@ export class GisGateService implements OnModuleInit {
       .filter((i) => !i.satisfied)
       .map((i) => ({
         code: `GIS_${i.kind}_OVERLAP`,
-        message: `Parcel overlaps ${KIND_LABEL[i.kind]} “${i.layerName}” by ${(i.overlapSqm / 10_000).toFixed(3)} ha (${i.overlapPct}% of the parcel). Missing: ${i.missing.map((m) => m.replace(/_/g, ' ').toLowerCase()).join(', ')}.`,
+        message: `Parcel overlaps ${KIND_LABEL[i.kind]} “${i.layerName}” by ${(i.overlapSqm / 10_000).toFixed(3)} ha (${i.overlapPct}% of the parcel). Missing: ${i.missing.map((m) => DOC_LABEL[m] ?? m.replace(/_/g, ' ').toLowerCase()).join(', ')}.`,
         citation: i.citation,
         overridable: i.overridable,
         unblockedBy: i.missing,
