@@ -14,6 +14,7 @@ const bundle = {
   baseSyncedAt: null,
   note: 'Boundary stone found at the north-east corner',
   photoHashes: ['a'.repeat(64)],
+  positionSource: 'DEVICE_GNSS' as const,
 };
 
 describe('field evidence seal', () => {
@@ -42,6 +43,7 @@ describe('field evidence seal', () => {
     ['zero accuracy', { accuracyM: 0 }, /accuracyM/],
     ['seven photos', { photoHashes: Array(7).fill('b'.repeat(64)) }, /photoHashes/],
     ['a missing seal', { bundleHash: undefined }, /bundleHash/],
+    ['an unknown position source', { positionSource: 'GUESSED' }, /positionSource/],
   ])('refuses %s', (_label, patch, msg) => {
     const errs = validateBundle({ ...bundle, bundleHash: 'c'.repeat(64), ...patch }, NOW);
     expect(errs.join('; ')).toMatch(msg);

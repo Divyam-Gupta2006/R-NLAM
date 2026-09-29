@@ -37,6 +37,7 @@ describe('Field evidence (e2e)', () => {
     baseSyncedAt: new Date().toISOString(),
     note: 'e2e point',
     photoHashes: [],
+    positionSource: 'DEVICE_GNSS',
     ...over,
   });
   const upload = async (k: string, bundle: device.EvidenceBundle & { bundleHash?: string }, photos: Buffer[] = []) => {

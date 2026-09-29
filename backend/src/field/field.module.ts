@@ -144,6 +144,7 @@ export class FieldController {
           geometry: b.geometry as unknown as Prisma.InputJsonValue,
           accuracyM: b.accuracyM,
           samples: b.samples,
+          positionSource: b.positionSource,
           note: b.note,
           photoDocumentIds: docs.map((d) => d.id),
           photoHashes: b.photoHashes,
@@ -153,7 +154,7 @@ export class FieldController {
           status,
           conflictWithId: unseen?.id ?? null,
           conflictReason: unseen
-            ? `Another ${b.kind === 'POINT' ? 'point' : 'boundary'} survey of this parcel reached the server at ${unseen.receivedAt.toISOString()}, after this device last synced; a supervisor must choose.`
+            ? `Another ${b.kind === 'POINT' ? 'point' : 'boundary'} survey of this parcel reached the server after this device last synced; a supervisor must choose.`
             : null,
         },
       });

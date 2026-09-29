@@ -61,6 +61,11 @@ function ParcelDetailBody({ p, reload }: { p: ParcelDetail; reload: () => void }
             {p.stage === 'DECLARED' && ACQUISITION.includes(user.role) && <DeclareAwardButton parcelId={p.id} onDone={reload} />}
             {p.stage === 'COMPENSATION_PAID' && POSSESSION.includes(user.role) && <TakePossessionButton parcelId={p.id} onDone={reload} />}
             {p.stage === 'POSSESSION_TAKEN' && ACQUISITION.includes(user.role) && <HandOverButton parcelId={p.id} onDone={reload} />}
+            {user.role === 'FIELD_OFFICER' && (
+              <Link className="btn-primary" href={`/field/capture?parcel=${p.id}`}>
+                <MapPin className="h-4 w-4" /> Capture evidence
+              </Link>
+            )}
           </>
         }
       />

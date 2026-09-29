@@ -41,6 +41,7 @@ export interface CaseLink {
 }
 
 const DECIDERS = ['CENTRAL_ADMIN', 'STATE_ADMIN', 'STATE_OFFICER', 'DISTRICT_OFFICER'];
+const CATEGORY: Record<CourtCase['category'], string> = { TITLE_SUIT: 'Title suit', LAR_REFERENCE: 's.64 reference', WRIT_PETITION: 'Writ petition', OTHER: 'Other' };
 
 /** Whether a confirmed case holds up acquisition (mirrors the backend rule). */
 export const blocksAcquisition = (c: CourtCase) => c.status === 'PENDING' && (c.category === 'TITLE_SUIT' || c.stayOrder);
@@ -50,7 +51,7 @@ export function CaseSummary({ c }: { c: CourtCase }) {
     <div className="space-y-1 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-bold">{c.caseNumber}</span>
-        <Badge tone="muted">{humanize(c.category)}</Badge>
+        <Badge tone="muted">{CATEGORY[c.category]}</Badge>
         {c.stayOrder && <Badge tone="bad">Stay / status quo</Badge>}
         <Badge tone={c.status === 'PENDING' ? 'warn' : 'good'}>{humanize(c.status)}</Badge>
         {c.isSynthetic && <SyntheticTag />}

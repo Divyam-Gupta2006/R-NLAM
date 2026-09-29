@@ -1,7 +1,7 @@
 'use client';
 
-import { FieldSyncPage } from '@/views/BreakdownPages';
+import { FieldSyncView } from '@/views/FieldViews';
 
 export default function Page() {
-  return <FieldSyncPage />;
+  return <FieldSyncView />;
 }

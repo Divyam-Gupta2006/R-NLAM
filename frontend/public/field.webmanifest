@@ -1,0 +1,23 @@
+{
+  "name": "R-NLAM Field",
+  "short_name": "R-NLAM Field",
+  "description": "Capture GNSS points, walked boundaries and photos for land acquisition, offline. Each bundle is sealed with SHA-256 on the device.",
+  "id": "/field/",
+  "start_url": "/field/assignments",
+  "scope": "/field/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1f3a",
+  "theme_color": "#0b1f3a",
+  "lang": "en-IN",
+  "categories": ["government", "productivity", "utilities"],
+  "icons": [
+    { "src": "/icons/field-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/field-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/field-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Capture evidence", "url": "/field/capture", "icons": [{ "src": "/icons/field-192.png", "sizes": "192x192" }] },
+    { "name": "Sync queue", "url": "/field/sync", "icons": [{ "src": "/icons/field-192.png", "sizes": "192x192" }] }
+  ]
+}

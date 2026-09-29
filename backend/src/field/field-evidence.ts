@@ -6,7 +6,7 @@ import { canonicalJson } from '../common/canonical-json';
  * Pure functions: validation and hashing, no I/O.
  */
 
-export const BUNDLE_KEYS = ['clientId', 'deviceId', 'parcelId', 'kind', 'geometry', 'accuracyM', 'samples', 'capturedAt', 'baseSyncedAt', 'note', 'photoHashes'] as const;
+export const BUNDLE_KEYS = ['clientId', 'deviceId', 'parcelId', 'kind', 'geometry', 'accuracyM', 'samples', 'capturedAt', 'baseSyncedAt', 'note', 'photoHashes', 'positionSource'] as const;
 
 export interface EvidenceBundle {
   clientId: string;
@@ -20,6 +20,7 @@ export interface EvidenceBundle {
   baseSyncedAt: string | null;
   note: string | null;
   photoHashes: string[];
+  positionSource: 'DEVICE_GNSS' | 'SIMULATED';
 }
 
 export function sealedPart(b: Record<string, unknown>): Record<string, unknown> {
@@ -66,6 +67,7 @@ export function validateBundle(raw: unknown, now: Date): string[] {
   if (b.baseSyncedAt !== null && b.baseSyncedAt !== undefined && (typeof b.baseSyncedAt !== 'string' || Number.isNaN(new Date(b.baseSyncedAt).getTime()))) errs.push('baseSyncedAt must be an ISO date-time or null');
   if (b.note !== null && b.note !== undefined && (typeof b.note !== 'string' || b.note.length > 1000)) errs.push('note must be text up to 1000 characters');
   if (!Array.isArray(b.photoHashes) || b.photoHashes.length > 6 || !b.photoHashes.every((h) => typeof h === 'string' && HEX64.test(h))) errs.push('photoHashes must list up to 6 SHA-256 hex digests');
+  if (b.positionSource !== 'DEVICE_GNSS' && b.positionSource !== 'SIMULATED') errs.push('positionSource must be DEVICE_GNSS or SIMULATED');
   if (typeof b.bundleHash !== 'string' || !HEX64.test(b.bundleHash)) errs.push('bundleHash (the device seal) is required');
   return errs;
 }

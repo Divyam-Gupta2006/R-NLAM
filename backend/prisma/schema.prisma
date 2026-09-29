@@ -1080,6 +1080,7 @@ model FieldEvidence {
   geometry         Json // GeoJSON Point or Polygon, EPSG:4326
   accuracyM        Float // horizontal accuracy reported by the device (worst sample)
   samples          Int                 @default(1)
+  positionSource   String              @default("DEVICE_GNSS") // or SIMULATED (demo walk); part of the seal
   note             String?
   photoDocumentIds String[]
   photoHashes      String[]

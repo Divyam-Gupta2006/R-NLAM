@@ -28,9 +28,11 @@ export interface EvidenceBundle {
   baseSyncedAt: string | null;
   note: string | null;
   photoHashes: string[];
+  /** DEVICE_GNSS, or SIMULATED when a demo walk stood in for a receiver. Sealed, so it cannot be dropped later. */
+  positionSource: 'DEVICE_GNSS' | 'SIMULATED';
 }
 
-export const BUNDLE_KEYS: Array<keyof EvidenceBundle> = ['clientId', 'deviceId', 'parcelId', 'kind', 'geometry', 'accuracyM', 'samples', 'capturedAt', 'baseSyncedAt', 'note', 'photoHashes'];
+export const BUNDLE_KEYS: Array<keyof EvidenceBundle> = ['clientId', 'deviceId', 'parcelId', 'kind', 'geometry', 'accuracyM', 'samples', 'capturedAt', 'baseSyncedAt', 'note', 'photoHashes', 'positionSource'];
 
 /** Deterministic JSON: keys sorted recursively, undefined dropped, Dates as ISO. */
 export function canonicalJson(value: unknown): string {

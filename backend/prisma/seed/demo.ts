@@ -1112,17 +1112,17 @@ async function seedFieldEvidence(ctx: Ctx) {
   };
   const r7 = (x: number) => Math.round(x * 1e7) / 1e7;
   const add = async (p: { id: string; parcelNumber: string }, who: { id: string; role: RoleName }, e: { clientId: string; deviceId: string; kind: 'POINT' | 'POLYGON'; geometry: object; accuracyM: number; samples: number; capturedAt: string; receivedAt: string; baseSyncedAt: string | null; note: string }) => {
-    const bundle = { clientId: e.clientId, deviceId: e.deviceId, parcelId: p.id, kind: e.kind, geometry: e.geometry, accuracyM: e.accuracyM, samples: e.samples, capturedAt: e.capturedAt, baseSyncedAt: e.baseSyncedAt, note: e.note, photoHashes: [] as string[] };
+    const bundle = { clientId: e.clientId, deviceId: e.deviceId, parcelId: p.id, kind: e.kind, geometry: e.geometry, accuracyM: e.accuracyM, samples: e.samples, capturedAt: e.capturedAt, baseSyncedAt: e.baseSyncedAt, note: e.note, photoHashes: [] as string[], positionSource: 'SIMULATED' as const };
     const seal = bundleSeal(bundle);
     const geo = await evidenceGeometryCheck(prisma, p.id, { kind: e.kind, geometry: e.geometry as never });
     const prior = await prisma.fieldEvidence.findFirst({ where: { parcelId: p.id, kind: e.kind, status: 'ACCEPTED', capturedById: { not: who.id }, receivedAt: { gt: e.baseSyncedAt ? new Date(e.baseSyncedAt) : new Date(0) } } });
     const ev = await prisma.fieldEvidence.create({
       data: {
         clientId: e.clientId, deviceId: e.deviceId, parcelId: p.id, capturedById: who.id, capturedAt: new Date(e.capturedAt), receivedAt: new Date(e.receivedAt),
-        baseSyncedAt: e.baseSyncedAt ? new Date(e.baseSyncedAt) : null, kind: e.kind, geometry: e.geometry as Prisma.InputJsonValue, accuracyM: e.accuracyM, samples: e.samples, note: e.note,
+        baseSyncedAt: e.baseSyncedAt ? new Date(e.baseSyncedAt) : null, kind: e.kind, geometry: e.geometry as Prisma.InputJsonValue, accuracyM: e.accuracyM, samples: e.samples, positionSource: 'SIMULATED', note: e.note,
         photoDocumentIds: [], photoHashes: [], bundleHash: seal, hashVerified: true, ...geo,
         status: prior ? 'CONFLICT' : 'ACCEPTED', conflictWithId: prior?.id ?? null,
-        conflictReason: prior ? `Another point survey of this parcel reached the server at ${prior.receivedAt.toISOString()}, after this device last synced; a supervisor must choose.` : null,
+        conflictReason: prior ? 'Another point survey of this parcel reached the server after this device last synced; a supervisor must choose.' : null,
       },
     });
     ctx.history.audit({ action: prior ? 'FIELD_EVIDENCE_CONFLICT' : 'FIELD_EVIDENCE_RECEIVED', entityType: 'FieldEvidence', entityId: ev.id, at: new Date(e.receivedAt), actor: actor(who), newState: { parcelNumber: p.parcelNumber, clientId: e.clientId, deviceSeal: seal, hashVerified: true, kind: e.kind, accuracyM: e.accuracyM, capturedAt: e.capturedAt, distanceM: ev.distanceM, overlapIoU: ev.overlapIoU, photos: 0, status: ev.status } });
