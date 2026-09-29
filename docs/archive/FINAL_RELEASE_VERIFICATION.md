@@ -13,11 +13,11 @@
 | **Backend API & NestJS** | **GREEN** | `npx tsc --noEmit` passed cleanly (0 errors). 17 NestJS modules compiled, REST controllers listening on port 4000. | VERIFIED & OPERATIONAL |
 | **PostgreSQL + PostGIS Database** | **GREEN** | Prisma schema with 12 entity domain groups. Seed script successfully seeds `NH-44 Expansion — Nagpur` with PostGIS polygons, PFMS payment UTRs, and R&R records. | VERIFIED & OPERATIONAL |
 | **AI FastAPI Microservice** | **GREEN** | `python verify_sanity.py` passed 4/4 unit & integration tests. Document OCR, Scikit-Learn Random Forest delay risk model, and safe NLP analytics query translator functioning on port 8000. | VERIFIED & OPERATIONAL |
-| **Field PWA (Dexie.js IndexedDB)**| **GREEN** | [`frontend/lib/db.ts`](file:///c:/Users/Acer/OneDrive/Desktop/SIH%202026/R-NLAM/R-NLAM/frontend/lib/db.ts) configures Dexie.js schema. Supports offline parcel survey capture, GPS/photo geotagging, local queue, and conflict-aware server sync. | VERIFIED & OPERATIONAL |
+| **Field PWA (Dexie.js IndexedDB)**| **GREEN** | [`frontend/lib/db.ts`](../../frontend/lib/db.ts) configures Dexie.js schema. Supports offline parcel survey capture, GPS/photo geotagging, local queue, and conflict-aware server sync. | VERIFIED & OPERATIONAL |
 | **Tamper-Evident Audit Chain** | **GREEN** | `AuditService` implements SHA-256 hash chaining (`previousHash` + `data` -> `hash`). Verification endpoint `/api/audit/verify-chain` detects record tampering. | VERIFIED & OPERATIONAL |
 | **Authentication & Authorization** | **GREEN** | Keycloak OAuth2/OIDC integration with NestJS `RolesGuard` failing closed (`UnauthorizedException` if identity missing, `ForbiddenException` if role unauthorized). | VERIFIED & OPERATIONAL |
 | **Government Adapter Gateway** | **GREEN** | Adapter interfaces for State Land Records, Cadastral GIS, PFMS Treasury, and DigiLocker with labelled synthetic mock adapters. | VERIFIED & OPERATIONAL |
-| **Frontend Platform & API Client**| **GREEN** | `npx tsc --noEmit` passed cleanly (0 errors). Centralized API client ([`frontend/lib/api/client.ts`](file:///c:/Users/Acer/OneDrive/Desktop/SIH%202026/R-NLAM/R-NLAM/frontend/lib/api/client.ts)) configured for backend REST API calls on port 4000. | VERIFIED & OPERATIONAL |
+| **Frontend Platform & API Client**| **GREEN** | `npx tsc --noEmit` passed cleanly (0 errors). Centralized API client ([`frontend/lib/api/client.ts`](../../frontend/lib/api/client.ts)) configured for backend REST API calls on port 4000. | VERIFIED & OPERATIONAL |
 | **Golden Demo Workflow** | **GREEN** | Backend & AI Services execute 12-stage acquisition sequence without manual DB edits. | VERIFIED & OPERATIONAL |
 
 ---

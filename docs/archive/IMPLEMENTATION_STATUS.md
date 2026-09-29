@@ -8,7 +8,7 @@
 | **Database Persistence** | **IMPLEMENTED** | 12 Entity Groups (User, Project, Proposal, Workflow, Parcel, Award, Compensation, R&R, Possession, Document, Audit, Risk) with PostGIS polygons & hash chaining. |
 | **API Integration Layer** | **HARDENED** | Centralized API client (`frontend/lib/api/client.ts`) connecting Next.js App Router to NestJS (`http://localhost:4000/api`) and FastAPI (`http://localhost:8000/api/v1`). |
 | **Auth & Authorization** | **HARDENED** | Keycloak OAuth2/OIDC integration with NestJS `RolesGuard` failing closed (`UnauthorizedException` if identity missing, `ForbiddenException` if role unauthorized). |
-| **Field PWA Offline Engine** | **IMPLEMENTED** | Dexie.js (IndexedDB) local queue ([`frontend/lib/db.ts`](file:///c:/Users/Acer/OneDrive/Desktop/SIH%202026/R-NLAM/R-NLAM/frontend/lib/db.ts)), simulated GPS/camera geotagging, conflict-aware server synchronization. |
+| **Field PWA Offline Engine** | **IMPLEMENTED** | Dexie.js (IndexedDB) local queue ([`frontend/lib/db.ts`](../../frontend/lib/db.ts)), simulated GPS/camera geotagging, conflict-aware server synchronization. |
 | **Cryptographic Audit Trail**| **IMPLEMENTED** | SHA-256 hash chaining (`previousHash` + `data` -> `hash`) providing append-oriented tamper-evident operational logs. |
 | **AI Microservice** | **VERIFIED** | Python FastAPI (`verify_sanity.py` passed 4/4): Document OCR entity extractor, Random Forest / Rules Delay-Risk Engine, Safe NLP to SQL translator. |
 | **Government Adapter Gateway**| **IMPLEMENTED** | Adapter interfaces for State Land Records, Cadastral GIS, PFMS Treasury, DigiLocker with labelled synthetic mock adapters. |
