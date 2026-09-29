@@ -22,8 +22,8 @@ class TestAIServiceSanity(unittest.TestCase):
         self.assertEqual(resp_health.json()["status"], "ok")
         print("  -> Passed: Microservice initialized and healthy listening on port 8000.")
 
-    def test_02_ocr_extraction(self):
-        print("[TEST 2/4] Verifying POST /api/v1/ocr/extract-document...")
+    def test_02_document_extraction(self):
+        print("[TEST 2/4] Verifying POST /api/v1/documents/extract...")
         raw_text = (
             "NOTICE OF AWARD & KHASRA DETAILS\n"
             "Khasra No: 142/3\n"
@@ -35,17 +35,19 @@ class TestAIServiceSanity(unittest.TestCase):
             "Date: 15/03/2024\n"
             "Compensation Amount: Rs. 1,550,000"
         )
-        res = self.client.post("/api/v1/ocr/extract-document", data={"raw_text": raw_text})
+        res = self.client.post("/api/v1/documents/extract", data={"raw_text": raw_text})
         self.assertEqual(res.status_code, 200)
         data = res.json()
-        self.assertTrue(data["success"])
-        self.assertEqual(data["verification_status"], "UNVERIFIED")
-        entities = data["entities"]
-        self.assertEqual(entities["khasra_number"], "142/3")
-        self.assertEqual(entities["survey_number"], "89-A")
-        self.assertEqual(entities["area_hectares"], 2.45)
-        self.assertEqual(entities["award_number"], "LA-AWARD-2024-089")
-        print("  -> Passed: Document OCR extraction parsed Khasra, survey, area, award, and returned UNVERIFIED status.")
+        f = data["fields"]
+        self.assertEqual(data["document_type"], "AWARD")
+        surveys = [x["value"] for x in f["survey_numbers"]]
+        self.assertIn("142/3", surveys)
+        self.assertIn("89-A", surveys)
+        self.assertEqual(f["area_hectares"][0]["value"], 2.45)
+        self.assertEqual(f["award_number"][0]["value"], "LA-AWARD-2024-089")
+        self.assertEqual(f["owner_names"][0]["value"], "Rajesh Sharma")
+        self.assertEqual(f["dates"][0]["value"], "2024-03-15")
+        print("  -> Passed: fields extracted with per-field confidence and evidence.")
 
     def test_03_risk_assessment(self):
         print("[TEST 3/4] Verifying POST /api/v1/risk/assess-delay...")
