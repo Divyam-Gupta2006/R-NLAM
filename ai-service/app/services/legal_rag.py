@@ -64,8 +64,13 @@ class Passage:
 
 def load_act() -> list[Passage]:
     raw = (DATA / "rfctlarr_2013.txt").read_text(encoding="utf-8")
+    # Sections end where the schedules begin (their numbered items are parsed separately).
+    schedule_starts = [m.start() for m in re.finditer(r"^THE FIRST SCHEDULE\s*$", raw, flags=re.MULTILINE)]
+    if schedule_starts:
+        raw = raw[: schedule_starts[-1]]
     # Body sections look like "25. Period within which an award shall be made. –The Collector…"
-    head = re.compile(r"^(\d{1,3}[A-Z]?)\.\s+([^\n]{3,200}?)\.\s?[–—-]\s?", re.MULTILINE)
+    # Long headings wrap onto a second line.
+    head = re.compile(r"^(\d{1,3}[A-Z]?)\.\s+([^\n]{3,200}?(?:\n[^\n]{1,200}?)?)\.\s?[–—-]\s?", re.MULTILINE)
     marks = list(head.finditer(raw))
     out = []
     for i, m in enumerate(marks):
@@ -73,7 +78,7 @@ def load_act() -> list[Passage]:
         body = raw[m.start() : end]
         body = re.split(r"\n\s*STATE AMENDMENTS", body)[0]  # keep the central text only
         body = re.sub(r"\s+", " ", body).strip()
-        out.append(Passage(id=f"s{m.group(1)}", citation=f"RFCTLARR 2013, s.{m.group(1)}", title=m.group(2).strip(), text=body, source="act"))
+        out.append(Passage(id=f"s{m.group(1)}", citation=f"RFCTLARR 2013, s.{m.group(1)}", title=re.sub(r"\s+", " ", m.group(2)).strip(), text=body, source="act"))
     return out
 
 

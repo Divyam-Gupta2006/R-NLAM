@@ -37,6 +37,7 @@ export const PORTALS: Portal[] = [
           { label: 'Interest liability', href: '/central/liability', icon: 'IndianRupee' },
           { label: 'GIS consent gate', href: '/central/consent', icon: 'ShieldAlert' },
           { label: 'Owner reconciliation', href: '/central/reconciliation', icon: 'Fingerprint' },
+          { label: 'Ask the Act', href: '/central/ask-the-act', icon: 'BookOpenCheck' },
         ],
       },
       {
@@ -85,6 +86,7 @@ export const PORTALS: Portal[] = [
           { label: 'Interest liability', href: '/state/liability', icon: 'IndianRupee' },
           { label: 'GIS consent gate', href: '/state/consent', icon: 'ShieldAlert' },
           { label: 'Owner reconciliation', href: '/state/reconciliation', icon: 'Fingerprint' },
+          { label: 'Ask the Act', href: '/state/ask-the-act', icon: 'BookOpenCheck' },
           { label: 'SLA tracker', href: '/state/sla', icon: 'Clock' },
           { label: 'Land & parcels', href: '/state/land', icon: 'Layers' },
           { label: 'GIS map', href: '/state/gis', icon: 'Map' },
@@ -128,6 +130,7 @@ export const PORTALS: Portal[] = [
           { label: 'R&R', href: '/district/rr', icon: 'HeartHandshake' },
           { label: 'Possession', href: '/district/possession', icon: 'KeyRound' },
           { label: 'Documents', href: '/district/documents', icon: 'FileCheck' },
+          { label: 'Ask the Act', href: '/district/ask-the-act', icon: 'BookOpenCheck' },
           { label: 'Field verification', href: '/district/field', icon: 'Smartphone' },
         ],
       },

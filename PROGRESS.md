@@ -18,7 +18,8 @@ Living log of the SIH 2026 finalist build. Newest status first. Evidence for eve
 | 6.5 owner reconciliation | Done: Devanagari/Gujarati/Kannada transliteration, Jaro-Winkler, Indian phonetic key, given-name and surname gates, father/village/shared-record signals, reasons per match, human queue with maker-checker for anything touching money, audited confirm/reject/unlink, release of held payment after confirmation. `npm test` 155 passed; `npm run test:e2e` 45 passed | `feature/6.5-owner-reconciliation` |
 | 6.6 digital thread & parcel graph | Done: server thread built from the audit chain across every linked record (with hashes), strand filters; layered project → notices → parcels → holders → cases/constraints graph; `docs/asyncapi.yaml` for all 8 event types. e2e thread 3 passed | `feature/6.6-digital-thread` |
 | 6.7 tamper-evident audit → Merkle | Done: RFC 6962 roots per IST day (238 seeded), chained roots, hourly sealer plus seal-now, `/audit/verify` recomputes chain and roots, `/audit/entries/:seq/proof`, in-browser proof verification (WebCrypto, cross-checked 162/162), `npm run demo:tamper` / `demo:restore` | `feature/6.7-merkle` |
-| 6.8 … 6.13 | Not started | — |
+| 6.8 document & case AI | Done: field extraction (PDF text layer; Tesseract only if installed, else a clear 422) with confidence, evidence and `needs_review`; backend stores proposals, 503 if the AI service is down, audited confirm/correct/reject where flagged fields cannot be skipped; seeded award PDF reads back all 11 fields correctly. Legal Q&A over the Act text, schedules and rule packs, quoted with citations, refuses weak matches. **Accuracy: dev (tuned) top-1 10/12, top-3 12/12; hold-out (untuned) top-1 3/8, top-3 4/8; off-topic refused 4/4.** ai-service `pytest` 27 passed; backend `npm test` 170, `npm run test:e2e` 56 passed; frontend `tsc` clean. `next build` 124/124; UI compiled but not clicked through in a browser (memory rule) | `feature/6.8-document-ai` |
+| 6.9 … 6.13 | Not started | — |
 
 ## ⚠ Read first: OneDrive
 
@@ -165,6 +166,22 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
   current day seals on the next hourly run, or on demand); roots are chained so rewriting
   history needs every later root rewritten. The browser re-verifies a proof itself rather
   than trusting the server.
+
+- **Legal Q&A is retrieval-only and honest about its accuracy.** BM25 over all 114 sections (two-line headings included),
+  the schedule items and rule-pack entries, plus sentence-proximity and title bonuses.
+  I tuned on a 14-question dev set, then wrote 10 new questions without tuning: it gets 3
+  of 8 answerable ones first time. I stopped tuning there rather than fit the hold-out; the
+  page states the hold-out score and always shows the top three passages. A real fix is
+  embeddings (needs a model download: see Needs Parvati).
+- **The old `/ocr/extract-document` endpoint is gone.** It returned a canned sample when
+  given no input. Images now need Tesseract; without it the API says so (422) and the
+  backend passes the message on.
+- **Flagged fields cannot be waved through.** A confirmation that leaves out any field
+  under 80% confidence is refused (400); corrections are counted and the before/after
+  values go into the audit entry.
+- **Two services at once, briefly.** To check the real chain (seeded PDF → backend →
+  AI service) I ran the AI service (~100 MB) alongside the backend for about a minute, with
+  4.5 GB free, then stopped both. The frontend was only compiled, not run.
 
 ## Log
 

@@ -1,8 +1,9 @@
 'use client';
 
-import { Download, FileUp, ShieldAlert } from 'lucide-react';
+import { Download, FileSearch, FileUp, ShieldAlert } from 'lucide-react';
 import React, { useState } from 'react';
 import { IntegrityBadge } from '@/components/IntegrityBadge';
+import { ExtractionReviewDialog } from '@/views/DocumentAiViews';
 import { verifyInclusionInBrowser } from '@/lib/merkle';
 import { Badge, Card, DataState, Dialog, EmptyState, PageHeader, Select, Spinner, Stat, StatusBadge, SyntheticTag, Table } from '@/components/ui';
 import { useUser } from '@/context/SessionContext';
@@ -307,6 +308,7 @@ export function UploadDocumentButton({ parcelId, projectId, onDone, defaultKind 
 export function DocumentsView({ eyebrow }: { eyebrow?: string }) {
   const state = useApi<DocumentRecord[]>('/documents');
   const toast = useToast();
+  const [reading, setReading] = useState<DocumentRecord | null>(null);
   const download = async (d: DocumentRecord) => {
     const res = await fetch(`${API_BASE_URL}/documents/${d.id}/download`, { headers: { Authorization: `Bearer ${tokenStore.get() ?? ''}` } });
     if (!res.ok) {
@@ -340,9 +342,16 @@ export function DocumentsView({ eyebrow }: { eyebrow?: string }) {
                   key: 'dl',
                   header: '',
                   cell: (d) => (
-                    <button className="btn-ghost px-2 py-1 text-xs" onClick={() => download(d)}>
-                      <Download className="h-3.5 w-3.5" /> Download
-                    </button>
+                    <div className="flex gap-1">
+                      {d.mimeType === 'application/pdf' || d.mimeType.startsWith('image/') ? (
+                        <button className="btn-ghost px-2 py-1 text-xs" onClick={() => setReading(d)} data-tour="read-fields">
+                          <FileSearch className="h-3.5 w-3.5" /> Read fields
+                        </button>
+                      ) : null}
+                      <button className="btn-ghost px-2 py-1 text-xs" onClick={() => download(d)}>
+                        <Download className="h-3.5 w-3.5" /> Download
+                      </button>
+                    </div>
                   ),
                 },
               ]}
@@ -350,6 +359,7 @@ export function DocumentsView({ eyebrow }: { eyebrow?: string }) {
           )}
         </DataState>
       </Card>
+      <ExtractionReviewDialog doc={reading} open={reading !== null} onClose={() => setReading(null)} />
     </div>
   );
 }
