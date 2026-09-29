@@ -25,6 +25,7 @@ import { syncCourtCases } from '../../src/court/court.module';
 import { SyntheticEcourtsAdapter } from '../../src/court/ecourts.adapter';
 import { bundleSeal } from '../../src/field/field-evidence';
 import { evidenceGeometryCheck } from '../../src/field/field-geo';
+import { SyntheticCpgramsAdapter } from '../../src/citizen/adapters';
 import { sealAudit } from '../../src/audit/merkle.service';
 import { LocalDiskStorage } from '../../src/storage/storage';
 import { makePdf } from './pdf';
@@ -194,9 +195,10 @@ export async function seedDemo(prisma: PrismaClient) {
   const main = await seedMainProject(ctx);
   for (const p of OTHER_PROJECTS) await seedOtherProject(ctx, p);
   await seedConstraintLayers(ctx);
-  await seedAwardCopy(ctx);
+  for (const n of [STORY.livePayParcel, STORY.livePossessionParcel, STORY.nameMismatchParcel]) await seedAwardCopy(ctx, n);
   await seedFieldEvidence(ctx);
   await seedCitizenLogins(ctx);
+  await seedGrievances(ctx);
   const written = await ctx.history.flush(prisma);
   const clocks = await seedClocks(prisma);
   const identity = await runReconciliation(prisma);
@@ -1071,10 +1073,10 @@ async function seedDocument(ctx: Ctx, parcelId: string, projectId: string, kind:
  * from the award row itself, so document extraction (6.8) has something true
  * to read and every proposed field can be checked against the database.
  */
-async function seedAwardCopy(ctx: Ctx) {
+async function seedAwardCopy(ctx: Ctx, parcelNumber: string) {
   const parcel = await ctx.prisma.parcel.findFirstOrThrow({
-    where: { parcelNumber: STORY.livePayParcel },
-    include: { awards: { orderBy: { awardDate: 'desc' }, take: 1 }, holders: { include: { person: true } } },
+    where: { parcelNumber },
+    include: { awards: { orderBy: { awardDate: 'desc' }, take: 1 }, compensations: { orderBy: { beneficiaryName: 'asc' } } },
   });
   const award = parcel.awards[0];
   if (!award) return;
@@ -1087,7 +1089,8 @@ async function seedAwardCopy(ctx: Ctx) {
     `Village: ${parcel.villageName}`,
     `District: ${parcel.districtName}`,
     `Survey No. ${parcel.surveyNumber}`,
-    ...parcel.holders.map((h) => `Name of the owner: ${h.nameAsRecorded} (share ${h.sharePct}%)`),
+    // Names as the award register has them (the land record may spell them differently).
+    ...parcel.compensations.map((c) => `Name of the owner: ${c.beneficiaryName} (share ${c.sharePct}%)`),
     `Area acquired: ${parcel.acquiredAreaHa || parcel.totalAreaHa} hectares`,
     `Market value: ${rs(award.marketValuePaise)}`,
     `Solatium (section 30(1)): ${rs(award.solatiumPaise)}`,
@@ -1095,6 +1098,43 @@ async function seedAwardCopy(ctx: Ctx) {
     `Total compensation: ${rs(award.totalPaise)}`,
     `Date of award: ${longDate}`,
   ]);
+}
+
+/**
+ * Citizen grievances (6.11) through the synthetic CPGRAMS adapter: one open,
+ * written in Marathi, and one answered.
+ */
+async function seedGrievances(ctx: Ctx) {
+  const { prisma } = ctx;
+  const cpgrams = new SyntheticCpgramsAdapter();
+  const lodge = async (phone: string, parcelNumber: string, g: { category: string; description: string; language: string; at: string; reply?: { text: string; at: string; by: { id: string; role: RoleName } } }) => {
+    const person = await prisma.person.findFirstOrThrow({ where: { phone } });
+    const parcel = await prisma.parcel.findFirstOrThrow({ where: { parcelNumber }, select: { id: true } });
+    const user = await prisma.user.findFirstOrThrow({ where: { personId: person.id } });
+    const at = new Date(g.at);
+    const { registrationNo } = await cpgrams.lodge(prisma, g, at);
+    const row = await prisma.grievance.create({
+      data: {
+        registrationNo, channel: cpgrams.channel, personId: person.id, parcelId: parcel.id, category: g.category, description: g.description, language: g.language, createdAt: at,
+        ...(g.reply ? { status: 'RESOLVED' as const, reply: g.reply.text, repliedById: g.reply.by.id, repliedAt: new Date(g.reply.at) } : {}),
+      },
+    });
+    ctx.history.audit({ action: 'GRIEVANCE_LODGED', entityType: 'Grievance', entityId: row.id, at, actor: actor({ id: user.id, role: RoleName.CITIZEN }), newState: { registrationNo, channel: cpgrams.channel, parcelNumber, category: g.category, language: g.language } });
+    if (g.reply) ctx.history.audit({ action: 'GRIEVANCE_RESOLVED', entityType: 'Grievance', entityId: row.id, at: new Date(g.reply.at), actor: actor(g.reply.by), previousState: { status: 'RECEIVED' }, newState: { status: 'RESOLVED', registrationNo } });
+  };
+  await lodge('9800000002', STORY.forestParcel, {
+    category: 'OTHER',
+    language: 'mr',
+    description: 'माझ्या जमिनीचा निवाडा अजून का जाहीर झाला नाही? अंतिम घोषणेला बरेच महिने झाले, पण कोणीही काही सांगत नाही.',
+    at: '2026-09-02T06:15:00.000Z',
+  });
+  await lodge('9800000001', STORY.livePossessionParcel, {
+    category: 'RR',
+    language: 'hi',
+    description: 'परिवहन भत्ते की राशि मेरे खाते में दिखाई नहीं दे रही है। कृपया जाँच करें।',
+    at: '2026-06-20T05:00:00.000Z',
+    reply: { text: 'The transportation grant was delivered with your R&R package; the date is on your Resettlement page. If your passbook does not show it, bring it to the Tehsil office and we will trace the transfer.', at: '2026-06-24T09:30:00.000Z', by: ctx.users.rr },
+  });
 }
 
 /**
