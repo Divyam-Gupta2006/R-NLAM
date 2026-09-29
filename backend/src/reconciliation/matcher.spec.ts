@@ -44,7 +44,16 @@ describe('matchPersons', () => {
   it('different fathers pull a same-name pair down to review', () => {
     const m = matchPersons(base({ name: 'Ganesh Kolhe', fatherName: 'Motiram Kolhe' }), base({ id: 'f', name: 'Ganesh Kolhe', fatherName: 'Narayan Kolhe', source: 'FIELD_SURVEY' }))!;
     expect(m.band).toBe('REVIEW');
-    expect(m.confidence).toBeLessThan(0.95);
+    expect(m.confidence).toBeLessThanOrEqual(0.75);
+  });
+
+  it.each([
+    // real false positives from the first seeded run
+    ['Namdeo Bapurao Raut', 'Namdeo Bapurao Patil'],
+    ['Sanjay Wamanrao Thakre', 'Sanjay Wamanrao Meshram'],
+    ['Ganesh Wamanrao Kale', 'Ganesh Motiram Kolhe'],
+  ])('different surnames are not candidates: %s vs %s', (x, y) => {
+    expect(matchPersons(base({ name: x, fatherName: x.split(' ').slice(1).join(' ') }), base({ id: 'z', name: y, fatherName: y.split(' ').slice(1).join(' ') }))).toBeNull();
   });
 
   it('the same ID hash is near-certain', () => {

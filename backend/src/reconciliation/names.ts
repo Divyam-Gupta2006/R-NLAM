@@ -94,6 +94,7 @@ export interface NameComparison {
   joined: number;
   tokens: number;
   given: number;
+  surname: number;
   phoneticMatch: boolean;
   a: string;
   b: string;
@@ -135,8 +136,11 @@ export function compareNames(rawA: string, rawB: string): NameComparison {
         B.length > 1 ? jaroWinkler(A[0], B[0] + B[1]) : 0,
       )
     : 0;
+  // Surnames (last token) likewise: a different family name means a different person.
+  const surname = A.length > 1 && B.length > 1 ? jaroWinkler(A[A.length - 1], B[B.length - 1]) : 1;
   let score = Math.max(joined, 0.5 * joined + 0.5 * tokens);
   if (given < 0.85) score *= given;
+  if (surname < 0.85) score *= surname;
   const r = (x: number) => Math.round(x * 1000) / 1000;
-  return { score: r(score), joined: r(joined), tokens: r(tokens), given: r(given), phoneticMatch, a: A.join(' '), b: B.join(' ') };
+  return { score: r(score), joined: r(joined), tokens: r(tokens), given: r(given), surname: r(surname), phoneticMatch, a: A.join(' '), b: B.join(' ') };
 }

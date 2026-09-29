@@ -40,12 +40,14 @@ export async function runReconciliation(db: Db) {
   const existing = new Map((await db.personMatch.findMany()).map((m) => [`${m.personAId}|${m.personBId}`, m]));
   let candidates = 0;
   let autoLinked = 0;
+  const found = new Set<string>();
   for (const group of byVillage.values()) {
     for (let i = 0; i < group.length; i++) {
       for (let j = i + 1; j < group.length; j++) {
         const [a, b] = group[i].id < group[j].id ? [group[i], group[j]] : [group[j], group[i]];
         const m = matchPersons(a, b);
         if (!m) continue;
+        found.add(`${a.id}|${b.id}`);
         const prior = existing.get(`${a.id}|${b.id}`);
         if (prior && prior.status !== MatchStatus.PENDING) continue;
         const status = m.band === 'AUTO_LINK' ? MatchStatus.AUTO_LINKED : MatchStatus.PENDING;
@@ -61,7 +63,10 @@ export async function runReconciliation(db: Db) {
       }
     }
   }
-  return { persons: persons.length, candidates, autoLinked };
+  // Pending candidates that no longer match (rules or records changed) are withdrawn.
+  const stale = [...existing.values()].filter((m) => m.status === MatchStatus.PENDING && !found.has(`${m.personAId}|${m.personBId}`));
+  if (stale.length) await db.personMatch.deleteMany({ where: { id: { in: stale.map((m) => m.id) } } });
+  return { persons: persons.length, candidates, autoLinked, withdrawn: stale.length };
 }
 
 class DecisionDto {

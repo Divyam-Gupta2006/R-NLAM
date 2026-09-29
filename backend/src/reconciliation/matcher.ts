@@ -48,11 +48,13 @@ export function matchPersons(a: PersonFacts, b: PersonFacts): MatchResult | null
 
   const n = compareNames(a.name, b.name);
   const scripts = `${detectScript(a.name)}→${detectScript(b.name)}`;
-  reasons.push({ signal: 'name', weight: 0.55, score: n.score, detail: `“${n.a}” vs “${n.b}”: Jaro-Winkler ${n.joined}, token match ${n.tokens}, given name ${n.given}${scripts !== 'Latn→Latn' ? ` (${scripts} transliterated)` : ''}` });
+  reasons.push({ signal: 'name', weight: 0.55, score: n.score, detail: `“${n.a}” vs “${n.b}”: Jaro-Winkler ${n.joined}, token match ${n.tokens}, given name ${n.given}, surname ${n.surname}${scripts !== 'Latn→Latn' ? ` (${scripts} transliterated)` : ''}` });
   reasons.push({ signal: 'phonetic', weight: 0.1, score: n.phoneticMatch ? 1 : 0, detail: n.phoneticMatch ? 'Phonetic keys agree' : 'Phonetic keys differ' });
 
+  let fatherScore: number | null = null;
   if (a.fatherName && b.fatherName) {
     const f = compareNames(a.fatherName, b.fatherName);
+    fatherScore = f.score;
     reasons.push({ signal: 'father', weight: 0.15, score: f.score, detail: `Father’s name “${f.a}” vs “${f.b}”: ${f.score}` });
   }
   if (a.villageCode && b.villageCode) {
@@ -68,6 +70,8 @@ export function matchPersons(a: PersonFacts, b: PersonFacts): MatchResult | null
   let confidence = reasons.reduce((s, r) => s + r.weight * r.score, 0) / totalWeight;
   // A weak name cannot be rescued by circumstantial signals.
   if (n.score < 0.75) confidence = Math.min(confidence, n.score);
+  // Different fathers: at most a weak candidate for review.
+  if (fatherScore !== null && fatherScore < 0.8) confidence = Math.min(confidence, 0.75);
   confidence = Math.round(confidence * 1000) / 1000;
 
   const requiresHuman = a.hasCompensation || b.hasCompensation;
