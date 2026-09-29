@@ -20,7 +20,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:unit": "jest",
     "test:e2e": "jest --config test/jest-e2e.json --runInBand",
-    "openapi": "ts-node -r dotenv/config scripts/export-openapi.ts"
+    "openapi": "ts-node -r dotenv/config scripts/export-openapi.ts",
+    "demo:tamper": "ts-node -r dotenv/config scripts/tamper-demo.ts",
+    "demo:restore": "ts-node -r dotenv/config scripts/tamper-demo.ts restore"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",

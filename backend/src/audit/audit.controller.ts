@@ -1,15 +1,19 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { R } from '../auth/auth.types';
 import { Roles } from '../auth/decorators';
 import { AuditService } from './audit.service';
+import { MerkleService } from './merkle.service';
 
 @ApiTags('audit')
 @ApiBearerAuth()
 @Roles(...R.OFFICIALS)
 @Controller('audit')
 export class AuditController {
-  constructor(private readonly audit: AuditService) {}
+  constructor(
+    private readonly audit: AuditService,
+    private readonly merkle: MerkleService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Audit entries, newest first' })
@@ -27,8 +31,30 @@ export class AuditController {
   }
 
   @Get('verify')
-  @ApiOperation({ summary: 'Recompute every hash in the chain and report the first break, if any' })
-  verify() {
-    return this.audit.verify();
+  @ApiOperation({ summary: 'Recompute every hash in the chain and every sealed Merkle root; report the first break, if any' })
+  async verify() {
+    const [chain, merkle] = await Promise.all([this.audit.verify(), this.merkle.verifyRoots()]);
+    return { ...chain, valid: chain.valid && merkle.valid, chainValid: chain.valid, merkle };
+  }
+
+  @Get('merkle/roots')
+  @ApiOperation({ summary: 'Sealed Merkle roots (one per IST day), newest first, with the chain of roots' })
+  roots() {
+    return this.merkle.roots();
+  }
+
+  @Post('merkle/seal')
+  @HttpCode(200)
+  @Roles(...R.SENIOR)
+  @ApiOperation({ summary: 'Seal unsealed entries now, including the day in progress (normally hourly, completed days only)' })
+  seal() {
+    return this.merkle.seal(true);
+  }
+
+  @Get('entries/:seq/proof')
+  @ApiOperation({ summary: 'RFC 6962 inclusion proof for one audit entry against the Merkle root that sealed it' })
+  proof(@Param('seq') seq: string) {
+    if (!/^\d+$/.test(seq)) throw new BadRequestException('seq must be a number');
+    return this.merkle.proof(BigInt(seq));
   }
 }

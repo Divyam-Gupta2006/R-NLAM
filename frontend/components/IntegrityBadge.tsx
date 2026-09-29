@@ -7,9 +7,23 @@ import type { AuditVerification } from '@/lib/api/types';
 import { cn } from '@/lib/utils';
 import { Spinner } from './ui';
 
-/** Re-computes every audit hash on the server, live, and shows the verdict. */
-export function IntegrityBadge({ className }: { className?: string }) {
-  const [result, setResult] = useState<AuditVerification | null>(null);
+export interface FullVerification extends AuditVerification {
+  chainValid: boolean;
+  merkle: {
+    roots: number;
+    valid: boolean;
+    unsealedEntries: number;
+    head: string | null;
+    broken: Array<{ period: string; fromSeq: number; toSeq: number; kind: string }>;
+  };
+}
+
+/**
+ * Re-computes every audit hash and every sealed Merkle root on the server,
+ * live, and shows the verdict.
+ */
+export function IntegrityBadge({ className, onResult }: { className?: string; onResult?: (r: FullVerification) => void }) {
+  const [result, setResult] = useState<FullVerification | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +31,9 @@ export function IntegrityBadge({ className }: { className?: string }) {
     setBusy(true);
     setError(null);
     try {
-      setResult(await api.get<AuditVerification>('/audit/verify'));
+      const r = await api.get<FullVerification>('/audit/verify');
+      setResult(r);
+      onResult?.(r);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -43,7 +59,12 @@ export function IntegrityBadge({ className }: { className?: string }) {
       <button className="btn-ghost py-1" onClick={run} disabled={busy}>
         {busy && <Spinner />} Verify now
       </button>
-      {result && <span className="text-xs text-ink-muted">{result.message} ({result.durationMs} ms)</span>}
+      {result && (
+        <span className="text-xs text-ink-muted">
+          {result.message} · {result.merkle.roots} Merkle roots {result.merkle.valid ? 'match' : <strong className="text-danger">do not match ({result.merkle.broken.map((b) => b.period).join(', ')})</strong>}
+          {result.merkle.unsealedEntries ? ` · ${result.merkle.unsealedEntries} entries awaiting the next seal` : ''} ({result.durationMs} ms)
+        </span>
+      )}
       {error && <span className="text-xs text-danger">{error}</span>}
     </div>
   );
