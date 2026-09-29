@@ -1,12 +1,14 @@
 # Shared settings for the user-space Postgres + PostGIS used in Windows dev.
 # Lives outside OneDrive on purpose: a synced data directory corrupts.
-# RNLAM_PG_DATA / RNLAM_PG_PORT override the cluster location and port.
+# Default root is C:\dev\rnlam-pg: unlike %LOCALAPPDATA%, packaged (MSIX) apps
+# do not redirect it, so the cluster is the same for every terminal and app.
+# RNLAM_PG_ROOT / RNLAM_PG_DATA / RNLAM_PG_PORT override root, cluster and port.
 
 $PgVersion      = '17.11'
 $PostgisVersion = '3.6.2'
 $PgPort         = if ($env:RNLAM_PG_PORT) { [int]$env:RNLAM_PG_PORT } else { 5433 }
 
-$PgRoot     = Join-Path $env:LOCALAPPDATA 'rnlam-pg'
+$PgRoot     = if ($env:RNLAM_PG_ROOT) { $env:RNLAM_PG_ROOT } else { 'C:\dev\rnlam-pg' }
 $PgHome     = Join-Path $PgRoot 'pgsql'
 $PgBin      = Join-Path $PgHome 'bin'
 $PgData     = if ($env:RNLAM_PG_DATA) { $env:RNLAM_PG_DATA } else { Join-Path $PgRoot 'data' }
@@ -28,6 +30,11 @@ function Test-InsidePackage {
     # 15700 = APPMODEL_ERROR_NO_PACKAGE.
     $len = 0
     return ([RNlam.AppModel]::GetCurrentPackageFullName([ref]$len, $null) -ne 15700)
+}
+
+# Only a root under %LOCALAPPDATA% is redirected by a packaged app.
+function Test-Redirected {
+    return (Test-InsidePackage) -and -not $env:RNLAM_PG_DATA -and $PgRoot.StartsWith($env:LOCALAPPDATA, [StringComparison]::OrdinalIgnoreCase)
 }
 
 function Test-PgRunning {

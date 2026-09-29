@@ -3,13 +3,13 @@
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\db-setup.ps1
 #
-# Result: cluster in %LOCALAPPDATA%\rnlam-pg\data on localhost:5433, role and
+# Result: cluster in C:\dev\rnlam-pg\data on localhost:5433, role and
 # database "rnlam" with PostGIS, DATABASE_URL written to backend\.env.
 # Passwords are generated here and never printed.
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'db-common.ps1')
 
-if ((Test-InsidePackage) -and -not $env:RNLAM_PG_DATA) {
+if (Test-Redirected) {
     Write-Host 'This shell runs inside a packaged (MSIX) app, which redirects %LOCALAPPDATA%' -ForegroundColor Yellow
     Write-Host 'writes into its own private folder. Run this script from a normal PowerShell window.' -ForegroundColor Yellow
     exit 2
