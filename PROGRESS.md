@@ -19,7 +19,8 @@ Living log of the SIH 2026 finalist build. Newest status first. Evidence for eve
 | 6.6 digital thread & parcel graph | Done: server thread built from the audit chain across every linked record (with hashes), strand filters; layered project → notices → parcels → holders → cases/constraints graph; `docs/asyncapi.yaml` for all 8 event types. e2e thread 3 passed | `feature/6.6-digital-thread` |
 | 6.7 tamper-evident audit → Merkle | Done: RFC 6962 roots per IST day (238 seeded), chained roots, hourly sealer plus seal-now, `/audit/verify` recomputes chain and roots, `/audit/entries/:seq/proof`, in-browser proof verification (WebCrypto, cross-checked 162/162), `npm run demo:tamper` / `demo:restore` | `feature/6.7-merkle` |
 | 6.8 document & case AI | Done: field extraction (PDF text layer; Tesseract only if installed, else a clear 422) with confidence, evidence and `needs_review`; backend stores proposals, 503 if the AI service is down, audited confirm/correct/reject where flagged fields cannot be skipped; seeded award PDF reads back all 11 fields correctly. Legal Q&A over the Act text, schedules and rule packs, quoted with citations, refuses weak matches. **Accuracy: dev (tuned) top-1 10/12, top-3 12/12; hold-out (untuned) top-1 3/8, top-3 4/8; off-topic refused 4/4.** ai-service `pytest` 27 passed; backend `npm test` 170, `npm run test:e2e` 56 passed; frontend `tsc` clean. `next build` 124/124; UI compiled but not clicked through in a browser (memory rule) | `feature/6.8-document-ai` |
-| 6.9 … 6.13 | Not started | — |
+| 6.9 candidate court-case links | Done: `EcourtsAdapter` interface + synthetic adapter (11 cases incl. deliberate near-misses); pure matcher (district gate; survey 0.45 / base 0.20; village ±0.20; party name via 6.5 × 0.35; candidate ≥ 0.50); 6 candidates seeded (5 true, 1 namesake trap), traps excluded; audited confirm/reject (reason required), idempotent re-sync keeps decisions; confirmed pending title suits and stay orders feed Why-Stuck with the CNR, s.64 references without a stay do not; case links in the digital thread; review page + parcel card. `npm test` 183, `npm run test:e2e` 61 passed; frontend `tsc` clean | `feature/6.9-court-links` |
+| 6.10 … 6.13 | Not started | — |
 
 ## ⚠ Read first: OneDrive
 
@@ -48,6 +49,15 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
    - (I tried launching setup outside the app through WMI; the safety classifier blocked it,
      so I stopped pursuing that.)
 2. **OneDrive**: see above.
+3. **eCourts / NJDG access (6.9).** The court-case adapter is synthetic. The real services
+   (eCourts Services APIs, NJDG) need an access agreement with the eCommittee / NIC. Once
+   you have credentials, a real adapter implements `EcourtsAdapter.casesForDistrict` in
+   `backend/src/court/ecourts.adapter.ts`; nothing else changes.
+4. **Better legal retrieval (6.8).** Accuracy on unseen questions is modest (3/8 top-1).
+   Sentence embeddings would help, but need a model download (~100–400 MB) and more RAM;
+   say if you want it.
+5. **Browser walk-through of 6.8 and 6.9 screens.** They compile and their APIs are tested
+   end to end, but I did not run backend + frontend together (one heavy process at a time).
 
 ## Decisions made overnight
 
@@ -182,6 +192,14 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
 - **Two services at once, briefly.** To check the real chain (seeded PDF → backend →
   AI service) I ran the AI service (~100 MB) alongside the backend for about a minute, with
   4.5 GB free, then stopped both. The frontend was only compiled, not run.
+
+- **Court links are never automatic.** Even a 0.99 match is a candidate; only an officer's
+  confirmation counts. Weights were set from first principles (a survey number is strong
+  evidence only in the right village; a name alone is never enough) and checked against
+  near-misses written into the synthetic data, not tuned to hit a number.
+- **What counts as "stuck" from a court.** A pending title suit, or any case with a stay /
+  status quo order. An s.64 reference to the Authority without a stay runs alongside
+  payment and possession, so it is shown on the parcel but does not create a bottleneck.
 
 ## Log
 

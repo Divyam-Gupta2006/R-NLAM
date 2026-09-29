@@ -13,6 +13,7 @@ function categorise(entityType: string, action: string): Category {
   if (entityType === 'Document') return 'EVIDENCE';
   if (entityType === 'Compensation' || entityType === 'Award' || action.includes('AWARD') || action.includes('PAY')) return 'MONEY';
   if (entityType === 'RRCase' || entityType === 'RREntitlementGrant' || entityType === 'PersonMatch' || action.startsWith('IDENTITY')) return 'PEOPLE';
+  if (entityType === 'CaseLink') return 'LEGAL';
   if (entityType === 'StatutoryNotice' || entityType === 'Objection' || entityType === 'Hearing' || action.startsWith('NOTICE') || action === 'DECLARE') return 'LEGAL';
   if (entityType === 'Possession' || action.includes('POSSESSION') || action === 'HAND_OVER') return 'LAND';
   return 'LEGAL';
@@ -78,6 +79,7 @@ class ThreadService {
         possessions: { select: { id: true } },
         documents: { select: { id: true, title: true, sha256: true, kind: true } },
         holders: { select: { personId: true } },
+        caseLinks: { select: { id: true } },
       },
     });
     if (!p) throw new NotFoundException('Parcel not found');
@@ -97,6 +99,7 @@ class ThreadService {
     for (const pos of p.possessions) related.set(pos.id, 'Possession');
     for (const d of p.documents) related.set(d.id, 'Document');
     for (const m of matches) related.set(m.id, 'PersonMatch');
+    for (const l of p.caseLinks) related.set(l.id, 'CaseLink');
 
     const audits = await this.prisma.auditEvent.findMany({
       where: { entityId: { in: [...related.keys()] } },

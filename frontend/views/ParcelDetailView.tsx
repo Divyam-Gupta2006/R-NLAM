@@ -7,6 +7,7 @@ import { DeclareAwardButton, HandOverButton, PayButton, TakePossessionButton, Tr
 import { AwardBreakdown } from '@/components/AwardBreakdown';
 import { DigitalThread } from '@/components/DigitalThread';
 import { LifecyclePanel } from '@/components/LifecyclePanel';
+import { ParcelCourtCases } from '@/views/CourtLinksView';
 import { ParcelMapCanvas } from '@/components/map/ParcelMap';
 import { ParcelClocks } from '@/views/StatutoryViews';
 import { ParcelGateCard } from '@/views/GisGateView';
@@ -156,6 +157,7 @@ function ParcelDetailBody({ p, reload }: { p: ParcelDetail; reload: () => void }
               <ParcelMapCanvas features={feature} height={260} />
             </Card>
           )}
+          <ParcelCourtCases parcelId={p.id} />
           <Card title="Documents">
             {p.documents.length === 0 ? (
               <EmptyState title="No documents attached" icon={<FileText className="h-6 w-6" />} />
