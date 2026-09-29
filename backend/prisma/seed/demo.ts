@@ -19,6 +19,9 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { computeClocks } from '../../src/rules/clocks';
 import { installPacks, RulesService } from '../../src/rules/rules.service';
 import { factsOf, parcelInclude } from '../../src/statutory/statutory.service';
+import { screenParcels } from '../../src/gis/gis-gate.service';
+import { LocalDiskStorage } from '../../src/storage/storage';
+import { makePdf } from './pdf';
 import { corridorRect, LngLat } from './geo';
 import { SeedActor, SeedHistory } from './history';
 import { makeRng, Rng } from './rng';
@@ -184,6 +187,7 @@ export async function seedDemo(prisma: PrismaClient) {
   await seedEntitlements(ctx);
   const main = await seedMainProject(ctx);
   for (const p of OTHER_PROJECTS) await seedOtherProject(ctx, p);
+  await seedConstraintLayers(ctx);
   await seedCitizenLogins(ctx);
   const written = await ctx.history.flush(prisma);
   const clocks = await seedClocks(prisma);
@@ -1022,4 +1026,72 @@ async function seedUrgencyParcels(ctx: Ctx, projectId: string, perParcelKm: numb
     await prisma.parcel.update({ where: { id: parcel.id }, data: { stage: 'POSSESSION_TAKEN', acquiredAreaHa: areaHa } });
   }
   return area;
+}
+
+type Pt = [number, number];
+const add = (a: Pt, b: Pt): Pt => [a[0] + b[0], a[1] + b[1]];
+const sub = (a: Pt, b: Pt): Pt => [a[0] - b[0], a[1] - b[1]];
+const mul = (a: Pt, k: number): Pt => [a[0] * k, a[1] * k];
+const mid = (a: Pt, b: Pt): Pt => mul(add(a, b), 0.5);
+const poly = (pts: Pt[]) => ({ type: 'Polygon', coordinates: [[...pts, pts[0]].map(([x, y]) => [Math.round(x * 1e7) / 1e7, Math.round(y * 1e7) / 1e7])] });
+
+/** Store a small real PDF and register it as a document on a parcel. */
+async function seedDocument(ctx: Ctx, parcelId: string, projectId: string, kind: 'GRAM_SABHA_CONSENT' | 'FOREST_CLEARANCE' | 'FRA_SETTLEMENT_CERTIFICATE', title: string, referenceNo: string, issuedOn: Date, lines: string[]) {
+  const storage = new LocalDiskStorage();
+  const key = `documents/seed/${referenceNo.replace(/[^A-Za-z0-9-]/g, '_')}.pdf`;
+  const stored = await storage.put(key, makePdf(title, [`Reference: ${referenceNo}`, `Issued: ${issuedOn.toISOString().slice(0, 10)}`, ...lines]));
+  const doc = await ctx.prisma.document.create({
+    data: { kind, title, fileName: key.split('/').pop()!, storageBackend: stored.backend, storageKey: key, sha256: stored.sha256, mimeType: 'application/pdf', sizeBytes: stored.sizeBytes, parcelId, projectId, referenceNo, issuedOn, uploadedById: ctx.users.collectorYavatmal.id },
+  });
+  ctx.history.audit({ action: 'DOCUMENT_UPLOADED', entityType: 'Document', entityId: doc.id, at: issuedOn, actor: actor(ctx.users.collectorYavatmal), newState: { kind, sha256: stored.sha256, parcelId, referenceNo } });
+  return doc;
+}
+
+/**
+ * Synthetic constraint layers drawn around the story parcels:
+ * - a reserved forest covering half of YTL-KRS-004 (blocks its award),
+ * - a pending FRA claim over a quarter of the same parcel,
+ * - a Scheduled Area over YTL-DHN-006, whose Gram Sabha consent is on file,
+ * - a wildlife sanctuary buffer away from the alignment (context only).
+ */
+async function seedConstraintLayers(ctx: Ctx) {
+  const { prisma } = ctx;
+  const ring = async (parcelNumber: string) => {
+    const p = await prisma.parcel.findFirstOrThrow({ where: { parcelNumber } });
+    const g = p.geometry as { coordinates: Pt[][] };
+    const [A, B, C, D] = g.coordinates[0] as Pt[]; // start-left, end-left, end-right, start-right
+    return { p, A, B, C, D };
+  };
+
+  const f = await ring(STORY.forestParcel);
+  const along = sub(f.B, f.A);
+  const left = sub(f.A, f.D);
+  const M0 = mid(f.A, f.D);
+  const M1 = mid(f.B, f.C);
+  const forest = poly([add(M0, mul(along, -1.5)), add(M1, mul(along, 1.3)), add(add(M1, mul(along, 1.6)), mul(left, 22)), add(add(mid(M0, M1), mul(left, 30)), mul(along, 0.2)), add(add(M0, mul(along, -1.8)), mul(left, 25))]);
+  const fraClaim = poly([add(M0, mul(along, -0.4)), mid(M0, M1), add(mid(M0, M1), mul(left, 4)), add(add(M0, mul(along, -0.4)), mul(left, 4))]);
+
+  const s = await ring('YTL-DHN-006');
+  const sAlong = sub(s.B, s.A);
+  const sLeft = sub(s.A, s.D);
+  const scheduled = poly([add(add(s.D, mul(sAlong, -2)), mul(sLeft, -8)), add(add(s.C, mul(sAlong, 2)), mul(sLeft, -8)), add(add(s.B, mul(sAlong, 2)), mul(sLeft, 12)), add(add(s.A, mul(sAlong, -2)), mul(sLeft, 12))]);
+
+  const layers = [
+    { code: 'MH-YTL-RF-KHARSHI', kind: 'FOREST' as const, name: 'Kharshi Reserved Forest, compartment 214', source: 'Synthetic, modelled on a forest compartment map' , geometry: forest },
+    { code: 'MH-YTL-FRA-KHARSHI-07', kind: 'FRA_CLAIM' as const, name: 'Community forest-rights claim CFR/KHR/07 (pending)', source: 'Synthetic, modelled on a Sub-Divisional Level Committee register', geometry: fraClaim },
+    { code: 'MH-YTL-SA-DHANORA', kind: 'SCHEDULED_AREA' as const, name: 'Scheduled Area, Dhanora cluster (Fifth Schedule)', source: 'Synthetic, illustrative boundary', geometry: scheduled },
+    { code: 'MH-YTL-PA-ESZ', kind: 'PROTECTED_AREA' as const, name: 'Wildlife sanctuary eco-sensitive zone (illustrative)', source: 'Synthetic', geometry: { type: 'Polygon', coordinates: [[[78.28, 20.36], [78.36, 20.36], [78.36, 20.42], [78.28, 20.42], [78.28, 20.36]]] } },
+  ];
+  for (const l of layers) {
+    await prisma.constraintLayer.create({ data: { ...l, isSynthetic: true, geometry: l.geometry as Prisma.InputJsonValue } });
+  }
+  await screenParcels(prisma);
+
+  // The Scheduled Area parcel already has its Gram Sabha consent on file.
+  await seedDocument(ctx, s.p.id, s.p.projectId, 'GRAM_SABHA_CONSENT', 'Gram Sabha resolution: consent to acquisition', 'GS/DHN/2025/11', parseIstDate('2025-10-20'), [
+    'Gram Sabha, Dhanora, meeting of 20 Oct 2025',
+    'Resolution 11: consent under s.41(3) RFCTLARR 2013 to acquisition of',
+    `survey no. ${s.p.surveyNumber} for the Wardha-Yavatmal highway.`,
+    'Quorum present; resolution passed.',
+  ]);
 }

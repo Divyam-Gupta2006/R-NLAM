@@ -822,3 +822,49 @@ model StatutoryClock {
   @@index([status, dueOn])
   @@index([districtCode, status])
 }
+
+// ---------------------------------------------------------------------------
+// 6.3 Geo-gated consent: constraint layers and parcel overlaps.
+// ---------------------------------------------------------------------------
+
+enum ConstraintKind {
+  FOREST
+  SCHEDULED_AREA
+  FRA_CLAIM
+  CRZ
+  PROTECTED_AREA
+}
+
+/// A regulatory layer (forest, Fifth Schedule area, FRA claim, CRZ, protected
+/// area). GeoJSON is the source; a trigger maintains the PostGIS `geom`.
+model ConstraintLayer {
+  id          String                                      @id @default(uuid())
+  code        String                                      @unique
+  kind        ConstraintKind
+  name        String
+  source      String
+  isSynthetic Boolean                                     @default(true)
+  geometry    Json
+  geom        Unsupported("geometry(MultiPolygon,4326)")?
+  areaSqm     Float?
+  createdAt   DateTime                                    @default(now())
+
+  overlaps ParcelConstraint[]
+
+  @@index([geom], map: "ConstraintLayer_geom_gist", type: Gist)
+}
+
+/// A parcel's overlap with a constraint layer, computed by PostGIS.
+model ParcelConstraint {
+  id              String          @id @default(uuid())
+  parcelId        String
+  layerId         String
+  layer           ConstraintLayer @relation(fields: [layerId], references: [id], onDelete: Cascade)
+  overlapSqm      Float
+  overlapPct      Float
+  overlapGeometry Json
+  detectedAt      DateTime        @default(now())
+
+  @@unique([parcelId, layerId])
+  @@index([parcelId])
+}

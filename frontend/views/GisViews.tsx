@@ -8,17 +8,19 @@ import { Badge, Card, DataState, EmptyState, PageHeader, Spinner, Stat, StatusBa
 import { useToast } from '@/context/ToastContext';
 import { api, ApiError, qs } from '@/lib/api/client';
 import { useApi } from '@/lib/api/hooks';
+import { layerOverlays } from './GisGateView';
 import type { Jurisdiction, Project } from '@/lib/api/types';
 import { ha, humanize, num } from '@/lib/format';
 
 type Features = { features: Array<ParcelFeature & { properties: ParcelFeature['properties'] & { areaSqm: number | null } }> };
 
 export function GisMapView({ eyebrow }: { eyebrow?: string }) {
+  const layers = useApi<Parameters<typeof layerOverlays>[0]>('/gis/layers');
   return (
     <div>
-      <PageHeader eyebrow={eyebrow} title="Parcel map" subtitle="Boundaries from PostGIS, coloured by lifecycle stage. Click a parcel for details." />
+      <PageHeader eyebrow={eyebrow} title="Parcel map" subtitle="Boundaries from PostGIS, coloured by lifecycle stage, with regulatory layers. Click a parcel for details." />
       <Card>
-        <ParcelMap height={620} />
+        <ParcelMap height={620} overlays={layerOverlays(layers.data ?? [])} />
       </Card>
     </div>
   );

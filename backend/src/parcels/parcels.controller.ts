@@ -21,6 +21,7 @@ import { AuthUser, R } from '../auth/auth.types';
 import { CurrentUser, Roles } from '../auth/decorators';
 import { rupeesToPaise } from '../common/money';
 import { paging, parcelScope } from '../common/scope';
+import { GisGateService } from '../gis/gis-gate.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 class GeoJsonPolygonDto {
@@ -55,6 +56,7 @@ export class ParcelsController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly gate: GisGateService,
   ) {}
 
   @Get()
@@ -167,6 +169,8 @@ export class ParcelsController {
         },
       });
       await this.audit.append(tx, { actor: user, action: 'PARCEL_REGISTERED', entityType: 'Parcel', entityId: parcel.id, newState: parcel });
+      // Screen the new boundary against every constraint layer straight away.
+      await this.gate.screen([parcel.id], tx);
       return parcel;
     });
   }
