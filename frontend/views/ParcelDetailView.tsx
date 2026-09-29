@@ -7,7 +7,7 @@ import { DeclareAwardButton, HandOverButton, PayButton, TakePossessionButton, Tr
 import { AwardBreakdown } from '@/components/AwardBreakdown';
 import { LifecyclePanel } from '@/components/LifecyclePanel';
 import { ParcelMapCanvas } from '@/components/map/ParcelMap';
-import type { ParcelFeature } from '@/components/map/ParcelMapInner';
+import type { ParcelFeature } from '@/components/map/map-types';
 import { Badge, Card, DataState, EmptyState, PageHeader, Stat, StatusBadge, SyntheticTag } from '@/components/ui';
 import { useUser } from '@/context/SessionContext';
 import { useApi } from '@/lib/api/hooks';

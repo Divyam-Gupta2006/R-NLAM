@@ -4,7 +4,7 @@ import { AlertTriangle, FolderKanban, HeartHandshake, IndianRupee, Layers, Messa
 import Link from 'next/link';
 import React from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { STAGE_COLORS } from '@/components/map/ParcelMapInner';
+import { STAGE_COLORS } from '@/components/map/map-types';
 import { Card, DataState, PageHeader, Progress, Stat, SyntheticTag, Table } from '@/components/ui';
 import { useApi } from '@/lib/api/hooks';
 import type { Breakdown, Kpis, Project } from '@/lib/api/types';

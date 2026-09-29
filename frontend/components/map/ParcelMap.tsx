@@ -6,8 +6,8 @@ import { useApi } from '@/lib/api/hooks';
 import { qs } from '@/lib/api/client';
 import { humanize } from '@/lib/format';
 import { DataState, EmptyState, LoadingBlock } from '../ui';
-import type { OverlayLayer, ParcelFeature } from './ParcelMapInner';
-import { STAGE_COLORS } from './ParcelMapInner';
+import type { OverlayLayer, ParcelFeature } from './map-types';
+import { STAGE_COLORS } from './map-types';
 
 // Leaflet touches `window`; load it only in the browser.
 const Inner = dynamic(() => import('./ParcelMapInner'), { ssr: false, loading: () => <LoadingBlock rows={6} label="Loading map…" /> });

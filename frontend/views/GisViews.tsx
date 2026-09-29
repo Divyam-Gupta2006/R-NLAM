@@ -3,7 +3,7 @@
 import { Download, Upload } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { ParcelMap } from '@/components/map/ParcelMap';
-import type { ParcelFeature } from '@/components/map/ParcelMapInner';
+import type { ParcelFeature } from '@/components/map/map-types';
 import { Badge, Card, DataState, EmptyState, PageHeader, Spinner, Stat, StatusBadge, Table } from '@/components/ui';
 import { useToast } from '@/context/ToastContext';
 import { api, ApiError, qs } from '@/lib/api/client';

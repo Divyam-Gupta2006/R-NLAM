@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { LifecyclePanel } from '@/components/LifecyclePanel';
 import { ParcelMap } from '@/components/map/ParcelMap';
-import { STAGE_COLORS } from '@/components/map/ParcelMapInner';
+import { STAGE_COLORS } from '@/components/map/map-types';
 import { Card, DataState, PageHeader, Stat, StatusBadge, SyntheticTag, Tabs } from '@/components/ui';
 import { useApi } from '@/lib/api/hooks';
 import type { ProjectDetail } from '@/lib/api/types';
