@@ -33,6 +33,7 @@ export const PORTALS: Portal[] = [
           { label: 'States', href: '/central/states', icon: 'Building' },
           { label: 'Districts', href: '/central/districts', icon: 'MapPin' },
           { label: 'Delay risk', href: '/central/risk', icon: 'AlertTriangle' },
+          { label: 'Statutory calendar', href: '/central/statutory', icon: 'Calendar' },
         ],
       },
       {
@@ -43,6 +44,7 @@ export const PORTALS: Portal[] = [
           { label: 'R&R', href: '/central/rr', icon: 'HeartHandshake' },
           { label: 'Possession', href: '/central/possession', icon: 'KeyRound' },
           { label: 'State machines', href: '/central/workflows', icon: 'GitBranch' },
+          { label: 'Rule packs', href: '/central/rules', icon: 'BookOpenCheck' },
         ],
       },
       {

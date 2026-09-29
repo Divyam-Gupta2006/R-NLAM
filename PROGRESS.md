@@ -10,8 +10,9 @@ Living log of the SIH 2026 finalist build. Newest status first. Evidence for eve
 | Phase 0: DB setup (user-space PG 17.11 + PostGIS 3.6.2) | Done (see "Needs Parvati" #1) | `phase0-reality-check` |
 | Phase 0: reality check + `docs/GAP_REPORT.md` | Done | `phase0-reality-check` |
 | Phase 1: auth, DTOs, migrations, state machine, audit, outbox, seed | Done: `npm test` 43 passed, `npm run test:e2e` 18 passed | `phase1-backend-core` (merged) |
-| Phase 1: frontend mock removal | In progress | `phase1-frontend` |
-| 6.1 rule engine … 6.13 | Not started | — |
+| Phase 1: frontend mock removal | Done: `lib/mockData.ts` deleted; `npx tsc --noEmit` clean; `next build` 105/105 pages; browser-checked login, national dashboard, parcel page (blocked possession shows the s.38(1) blocker), work queue, finance, R&R | `phase1-frontend` (merged) |
+| 6.1 statutory rule engine | Done: verified rule packs, statutory clocks, T-60/30/7 alerts, lapse guards, calendar and rule-pack UI. `npm test` 64 passed; `npm run test:e2e` 24 passed | `feature/6.1-rule-engine` |
+| 6.2 … 6.13 | Not started | — |
 
 ## ⚠ Read first: OneDrive
 
@@ -77,12 +78,34 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
 - **Keycloak mode is kept but untested.** `jwks-rsa` now loads lazily (its ESM
   dependency broke Jest). Dev mode issues equivalent claims.
 
+- **Statutory law checked against the Act, and two corrections.** I verified every
+  number against the India Code text (details in `docs/rule-packs.md`). (1) The 12%
+  additional amount runs from the **s.4(2) SIA notification**, not s.11 as the brief
+  said; the pack encodes this and the seed now has SIA notices. (2) The resettlement
+  allowance is Second Schedule item 10, not item 9.
+- **The multiplier distance bands are unverified.** The Act fixes only the ×1–×2 range;
+  each state notifies the bands. I could not find Maharashtra's notification, so the
+  bands are labelled placeholders and every award that uses them says so.
+- **Lapse is enforced as an overridable guard.** The Act lets the Government extend the
+  s.19 and s.25 periods in writing, so a State/Central admin can override with a
+  reason (the extension order); it is audited as highlighted.
+- **Award money is resolved on the award date; each clock on its own start date.**
+- **Seed parcels resized to real highway strips** (0.6–2.1 ha; they were 3–7 ha) and
+  Karnataka rates lowered, so awards look plausible (the ₹5 Cr+ awards are gone).
+- **Browser checks used the production build** (`next start`, about 200 MB) alongside
+  the backend. Checking pages needs both, and this was the lightest way; I stopped both
+  afterwards.
+
 ## Log
 
 - **2026-09-29 02:10–04:00**: Phase 1 backend. New schema and baseline migration; auth
   and the global guard; lifecycle engine with 8 machines; audit chain v2; outbox; domain
   modules; demo seed (164 parcels, 944 audit entries, 4 s); 43 unit and 18 e2e tests
   passing.
+- **2026-09-29 04:00–09:40**: Phase 1 frontend (the laptop slept for a while). Views,
+  shell, session, citizen portal; the production build caught Leaflet imported
+  during server-side rendering (fixed). Then 6.1: verified the Act text, rule packs, clocks,
+  alerts, guards, UI.
 
 - **2026-09-29 01:00–02:10**: cloned; installed deps; built user-space PG + PostGIS; ran
   every existing check; wrote `docs/GAP_REPORT.md`; added `scripts/db-*.ps1`; the backend

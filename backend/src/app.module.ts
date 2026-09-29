@@ -23,6 +23,7 @@ import { RRModule } from './rr/rr.module';
 import { RulesModule } from './rules/rules.module';
 import { SlaModule } from './sla/sla.module';
 import { StorageModule } from './storage/storage.module';
+import { StatutoryModule } from './statutory/statutory.module';
 import { SystemModule } from './system/system.module';
 import { UsersModule } from './users/users.module';
 
@@ -39,6 +40,7 @@ import { UsersModule } from './users/users.module';
     RulesModule,
     NotificationsModule,
     SystemModule,
+    StatutoryModule,
     // domain
     ProjectsModule,
     ProposalsModule,

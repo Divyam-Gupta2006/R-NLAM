@@ -1,7 +1,7 @@
 import { BadRequestException, Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { NoticeKind } from '@prisma/client';
-import { ArrayMinSize, IsArray, IsDateString, IsEnum, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEnum, IsOptional, IsString, IsUUID, Length, MaxLength } from 'class-validator';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser, R } from '../auth/auth.types';
 import { CurrentUser, Roles } from '../auth/decorators';
@@ -19,6 +19,11 @@ class PublishNoticeDto {
   @ApiPropertyOptional({ example: 'Maharashtra Govt Gazette Part IV-B, 14 Jan 2026' }) @IsOptional() @IsString() gazetteRef?: string;
   @ApiProperty({ example: '2026-01-14' }) @IsDateString() publishedOn: string;
   @ApiProperty({ type: [String] }) @IsArray() @ArrayMinSize(1) @IsUUID('4', { each: true }) parcelIds: string[];
+  @ApiPropertyOptional({ description: 'Senior officers: proceed past overridable blockers (e.g. declaration window extended by Government order)' })
+  @IsOptional()
+  @IsBoolean()
+  override?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(2000) reason?: string;
 }
 
 /** Which parcel transition each notice kind drives. */
@@ -55,6 +60,7 @@ export class NoticesController {
     summary: 'Publish a notice for a set of parcels. s.11 moves them to PRELIM_NOTIFIED, s.19 to DECLARED. Blocked parcels are left out and reported.',
   })
   async publish(@CurrentUser() user: AuthUser, @Body() dto: PublishNoticeDto) {
+    if (dto.override && (dto.reason?.trim().length ?? 0) < 20) throw new BadRequestException('An override needs a reason of at least 20 characters (e.g. the extension order reference)');
     const event = EVENT_FOR[dto.kind];
     const parcels = await this.prisma.parcel.findMany({ where: { id: { in: dto.parcelIds }, projectId: dto.projectId } });
     if (parcels.length !== dto.parcelIds.length) throw new BadRequestException('Some parcels do not belong to this project');
@@ -74,7 +80,8 @@ export class NoticesController {
         continue;
       }
       const real = option.blockers.filter((b) => !b.code.startsWith('MISSING_SEC_'));
-      if (real.length) excluded.push({ parcelId: p.id, parcelNumber: p.parcelNumber, blockers: real });
+      const overridable = dto.override && option.canOverride && real.every((b) => b.overridable);
+      if (real.length && !overridable) excluded.push({ parcelId: p.id, parcelNumber: p.parcelNumber, blockers: real });
       else included.push(p.id);
     }
     if (included.length === 0) throw new BadRequestException({ message: 'No parcel can take this notice', excluded });
@@ -106,7 +113,8 @@ export class NoticesController {
               event,
               actor: user,
               fromDomainService: true,
-              reason: `${dto.kind} ${dto.referenceNo}`,
+              override: dto.override,
+              reason: dto.reason ?? `${dto.kind} ${dto.referenceNo}`,
               context: { noticeId: notice.id },
             });
           }

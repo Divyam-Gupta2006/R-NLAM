@@ -1,0 +1,291 @@
+/**
+ * Rule packs shipped with R-NLAM. Values, citations and quotes were checked on
+ * 2026-09-29 against the text of Act No. 30 of 2013 as published on India Code
+ * (https://www.indiacode.nic.in/bitstream/123456789/2121/1/A2013-30.pdf),
+ * which also carries the Maharashtra amendments (Maharashtra Act 37 of 2018).
+ * Anything we could not verify there is marked `unverified: true` and flagged
+ * in the UI. See docs/rule-packs.md for how a state adds its own pack.
+ */
+
+export interface RuleSeed {
+  key: string;
+  category: 'DEADLINE' | 'MONEY' | 'DOCUMENT' | 'PROCEDURE' | 'ALERT';
+  label: string;
+  value: unknown;
+  unit?: string;
+  citation: string;
+  quote?: string;
+  unverified?: boolean;
+  note?: string;
+}
+
+export interface PackSeed {
+  code: string;
+  actCode: string;
+  stateCode: string | null;
+  version: number;
+  title: string;
+  source: string;
+  effectiveFrom: string; // YYYY-MM-DD (IST)
+  effectiveTo?: string;
+  entries: RuleSeed[];
+}
+
+export interface MultiplierBand {
+  /** Upper bound (inclusive) of distance from the urban area, km; null = beyond. */
+  maxKm: number | null;
+  factor: number;
+}
+
+const SOURCE = 'India Code: Act 30 of 2013 (with state amendments), verified 2026-09-29';
+
+export const CENTRAL_PACK: PackSeed = {
+  code: 'IN-RFCTLARR-2013-v1',
+  actCode: 'RFCTLARR_2013',
+  stateCode: null,
+  version: 1,
+  title: 'RFCTLARR Act 2013: central provisions',
+  source: SOURCE,
+  effectiveFrom: '2014-01-01', // commencement of the Act
+  entries: [
+    {
+      key: 'deadline.objection.days',
+      category: 'DEADLINE',
+      label: 'Window to object after the preliminary notification',
+      value: 60,
+      unit: 'days',
+      citation: 'RFCTLARR 2013, s.15(1)',
+      quote: 'Any person interested in any land which has been notified under sub-section (1) of section 11 … may within sixty days from the date of the publication of the preliminary notification, object',
+    },
+    {
+      key: 'deadline.declaration.months',
+      category: 'DEADLINE',
+      label: 'Declaration (s.19) must follow the preliminary notification within',
+      value: 12,
+      unit: 'months',
+      citation: 'RFCTLARR 2013, s.19(7)',
+      quote:
+        'Where no declaration is made under sub-section (1) within twelve months from the date of preliminary notification, then such notification shall be deemed to have been rescinded',
+      note: 'Periods of court stay or injunction are excluded; the appropriate Government may extend the period, recorded in writing and notified.',
+    },
+    {
+      key: 'deadline.award.months',
+      category: 'DEADLINE',
+      label: 'Award must follow the s.19 declaration within',
+      value: 12,
+      unit: 'months',
+      citation: 'RFCTLARR 2013, s.25',
+      quote:
+        'The Collector shall make an award within a period of twelve months from the date of publication of the declaration under section 19 and if no award is made within that period, the entire proceedings for the acquisition of the land shall lapse',
+      note: 'The appropriate Government may extend the period, recorded in writing and notified.',
+    },
+    {
+      key: 'deadline.payment.months',
+      category: 'DEADLINE',
+      label: 'Compensation to be paid or tendered within, from the award',
+      value: 3,
+      unit: 'months',
+      citation: 'RFCTLARR 2013, s.38(1)',
+      quote:
+        'The Collector shall take possession of land after ensuring that full payment of compensation as well as rehabilitation and resettlement entitlements are paid or tendered to the entitled persons within a period of three months for the compensation',
+    },
+    {
+      key: 'deadline.rr_monetary.months',
+      category: 'DEADLINE',
+      label: 'Monetary R&R entitlements to be paid within, from the award',
+      value: 6,
+      unit: 'months',
+      citation: 'RFCTLARR 2013, s.38(1)',
+      quote: 'a period of six months for the monetary part of rehabilitation and resettlement entitlements listed in the Second Schedule commencing from the date of the award',
+    },
+    {
+      key: 'deadline.rr_infrastructure.months',
+      category: 'DEADLINE',
+      label: 'Infrastructural R&R entitlements to be provided within, from the award',
+      value: 18,
+      unit: 'months',
+      citation: 'RFCTLARR 2013, s.38(1), first proviso',
+      quote: 'components of the Rehabilitation and Resettlement Package in the Second and Third Schedules that relate to infrastructural entitlements shall be provided within a period of eighteen months from the date of the award',
+    },
+    {
+      key: 'money.multiplier.urban',
+      category: 'MONEY',
+      label: 'Factor on market value, urban areas',
+      value: 1,
+      unit: 'factor',
+      citation: 'RFCTLARR 2013, First Schedule, item 3',
+      quote: 'Factor by which the market value is to be multiplied in the case of urban areas: 1 (One).',
+    },
+    {
+      key: 'money.multiplier.rural',
+      category: 'MONEY',
+      label: 'Factor on market value, rural areas, by distance from urban area',
+      value: {
+        range: [1, 2],
+        bands: [
+          { maxKm: 10, factor: 1.2 },
+          { maxKm: 20, factor: 1.4 },
+          { maxKm: 30, factor: 1.6 },
+          { maxKm: 40, factor: 1.8 },
+          { maxKm: null, factor: 2.0 },
+        ] satisfies MultiplierBand[],
+      },
+      unit: 'factor',
+      citation: 'RFCTLARR 2013, First Schedule, item 2',
+      quote: '1.00 (One) to 2.00 (Two) based on the distance of project from urban area, as may be notified by the appropriate Government.',
+      unverified: true,
+      note: 'The Act fixes only the 1.00–2.00 range; the distance bands are notified by each state. These bands are an illustrative placeholder.',
+    },
+    {
+      key: 'money.solatium.bp',
+      category: 'MONEY',
+      label: 'Solatium, as a share of the compensation',
+      value: 10_000,
+      unit: 'basis points',
+      citation: 'RFCTLARR 2013, s.30(1); First Schedule, item 5',
+      quote: 'impose a “Solatium” amount equivalent to one hundred per cent. of the compensation amount',
+    },
+    {
+      key: 'money.additional.bp_per_year',
+      category: 'MONEY',
+      label: 'Additional amount on market value, per year',
+      value: 1_200,
+      unit: 'basis points per annum',
+      citation: 'RFCTLARR 2013, s.30(3)',
+      quote:
+        'award an amount calculated at the rate of twelve per cent. per annum on such market value for the period commencing on and from the date of the publication of the notification of the Social Impact Assessment study under sub-section (2) of section 4 … till the date of the award of the Collector or the date of taking possession of the land, whichever is earlier',
+    },
+    {
+      key: 'money.additional.start_event',
+      category: 'MONEY',
+      label: 'Additional amount runs from',
+      value: 'SEC_4_SIA',
+      citation: 'RFCTLARR 2013, s.30(3)',
+      note: 'From the s.4(2) SIA notification, not the s.11 notification. Where a project is exempt from SIA, the s.11 date is used and flagged as unverified.',
+    },
+    {
+      key: 'money.interest.first_year.bp',
+      category: 'MONEY',
+      label: 'Interest on compensation unpaid at possession, first year',
+      value: 900,
+      unit: 'basis points per annum',
+      citation: 'RFCTLARR 2013, s.80',
+      quote:
+        'When the amount of such compensation is not paid or deposited on or before taking possession of the land, the Collector shall pay the amount awarded with interest thereon at the rate of nine per cent. per annum from the time of so taking possession until it shall have been so paid or deposited',
+    },
+    {
+      key: 'money.interest.after_year.bp',
+      category: 'MONEY',
+      label: 'Interest after one year from possession',
+      value: 1_500,
+      unit: 'basis points per annum',
+      citation: 'RFCTLARR 2013, s.80, proviso',
+      quote:
+        'if such compensation or any part thereof is not paid or deposited within a period of one year from the date on which possession is taken, interest at the rate of fifteen per cent. per annum shall be payable from the date or expiry of the said period of one year',
+    },
+    {
+      key: 'money.urgency.tender.bp',
+      category: 'MONEY',
+      label: 'Tender before urgency possession',
+      value: 8_000,
+      unit: 'basis points of estimated compensation',
+      citation: 'RFCTLARR 2013, s.40(3)',
+      quote: 'the Collector shall tender payment of eighty per cent. of the compensation for such land as estimated by him',
+    },
+    {
+      key: 'money.urgency.additional.bp',
+      category: 'MONEY',
+      label: 'Additional compensation for urgency acquisition',
+      value: 7_500,
+      unit: 'basis points of total compensation',
+      citation: 'RFCTLARR 2013, s.40(5)',
+      quote: 'An additional compensation of seventy-five per cent. of the total compensation as determined under section 27, shall be paid',
+    },
+    {
+      key: 'money.sc_st.first_instalment',
+      category: 'MONEY',
+      label: 'First instalment to SC/ST families',
+      value: '1/3',
+      unit: 'fraction of compensation',
+      citation: 'RFCTLARR 2013, s.41(6)',
+      quote: 'at least one-third of the compensation amount due shall be paid to the affected families initially as first instalment',
+    },
+    {
+      key: 'document.scheduled_area.consent',
+      category: 'DOCUMENT',
+      label: 'Required before any notification in a Scheduled Area',
+      value: ['GRAM_SABHA_CONSENT'],
+      citation: 'RFCTLARR 2013, s.41(3)',
+      quote:
+        'In case of acquisition or alienation of any land in the Scheduled Areas, the prior consent of the concerned Gram Sabha or the Panchayats or the autonomous District Councils … shall be obtained, in all cases of land acquisition in such areas, including acquisition in case of urgency, before issue of a notification',
+    },
+    {
+      key: 'alert.offsets.days',
+      category: 'ALERT',
+      label: 'Warn officers this many days before a statutory deadline',
+      value: [60, 30, 7],
+      unit: 'days',
+      citation: 'R-NLAM policy (not statutory)',
+    },
+  ],
+};
+
+export const MAHARASHTRA_PACK: PackSeed = {
+  code: 'MH-RFCTLARR-2013-v1',
+  actCode: 'RFCTLARR_2013',
+  stateCode: 'MH',
+  version: 1,
+  title: 'RFCTLARR Act 2013 as amended for Maharashtra (Maharashtra Act 37 of 2018)',
+  source: SOURCE,
+  effectiveFrom: '2018-04-26', // w.e.f. of Maharashtra Act 37 of 2018
+  entries: [
+    {
+      key: 'money.rr.linear_lumpsum.bp',
+      category: 'MONEY',
+      label: 'Lump-sum R&R for linear projects, as a share of s.27 compensation',
+      value: 5_000,
+      unit: 'basis points',
+      citation: 'RFCTLARR 2013, s.31A (Maharashtra), inserted by Maharashtra Act 37 of 2018, s.6',
+      quote:
+        'it shall be competent for the State Government to pay … in case of projects which are linear in nature … as Rehabilitation and Resettlement cost, such lump sum amount equal to fifty per cent. of the amount of compensation as determined under section 27 to the affected families',
+    },
+    {
+      key: 'procedure.consent_award',
+      category: 'PROCEDURE',
+      label: 'Award by agreement of all interested persons',
+      value: true,
+      citation: 'RFCTLARR 2013, s.23A (Maharashtra), inserted by Maharashtra Act 37 of 2018, s.4',
+      quote:
+        'if at any stage of the proceedings, the Collector is satisfied that all the persons interested in the land who appeared before him have agreed in writing on the matters to be included in the award … he may, without making further enquiry, make an award according to the terms of such agreement',
+    },
+    {
+      key: 'procedure.sia_exemption',
+      category: 'PROCEDURE',
+      label: 'State may exempt listed projects from Chapters II and III (SIA, food security)',
+      value: ['national security/defence', 'rural infrastructure incl. irrigation and electrification', 'affordable housing', 'State industrial areas', 'State industrial corridors'],
+      citation: 'RFCTLARR 2013, s.10A (Maharashtra), inserted by Maharashtra Act 37 of 2018, s.3',
+      quote: 'The State Government may, in the public interest, by notification in the Official Gazette, exempt any of the following projects from the application of the provisions of Chapter II and Chapter III of this Act',
+    },
+    {
+      key: 'money.multiplier.rural',
+      category: 'MONEY',
+      label: 'Factor on market value, rural Maharashtra, by distance from urban area',
+      value: {
+        range: [1, 2],
+        bands: [
+          { maxKm: 10, factor: 1.1 },
+          { maxKm: 20, factor: 1.3 },
+          { maxKm: 30, factor: 1.5 },
+          { maxKm: 40, factor: 1.8 },
+          { maxKm: null, factor: 2.0 },
+        ] satisfies MultiplierBand[],
+      },
+      unit: 'factor',
+      citation: 'RFCTLARR 2013, First Schedule, item 2; Maharashtra notification (reference to be confirmed)',
+      unverified: true,
+      note: 'Placeholder bands. Replace with the factors in the Maharashtra Government notification under the First Schedule before any real use.',
+    },
+  ],
+};
+
+export const SHIPPED_PACKS: PackSeed[] = [CENTRAL_PACK, MAHARASHTRA_PACK];

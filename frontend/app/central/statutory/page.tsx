@@ -3,5 +3,5 @@
 import { StatutoryCalendarView } from '@/views/StatutoryViews';
 
 export default function Page() {
-  return <StatutoryCalendarView eyebrow="State Portal" />;
+  return <StatutoryCalendarView eyebrow="National Command" />;
 }
