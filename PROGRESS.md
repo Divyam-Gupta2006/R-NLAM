@@ -15,7 +15,8 @@ Living log of the SIH 2026 finalist build. Newest status first. Evidence for eve
 | 6.2 live interest liability + roll-up | Done: s.80 interest and s.30(3) additional amount, live counter, trend, nation→parcel drill-down, act-this-week ranking. `npm test` 75 passed; `npm run test:e2e` 28 passed | `feature/6.2-interest-liability` |
 | 6.3 GIS consent gate | Done: constraint layers in PostGIS, ST_Intersects + overlap area on parcel create and layer load, backend guard on award and possession, override rules, map with exact overlaps, upload-to-clear. `npm run test:e2e` 32 passed | `feature/6.3-gis-gate` |
 | 6.4 "Why is this project stuck?" | Done: 9 bottleneck types across rules, GIS, objections, money, R&R and litigation; priority = risk × ₹ × families with every component explained; action briefs; audited accept/dispute feedback; LLM rephrase-only with fact check. `npm test` 109 passed; `npm run test:e2e` 40 passed | `feature/6.4-why-stuck` |
-| 6.5 … 6.13 | Not started | — |
+| 6.5 owner reconciliation | Done: Devanagari/Gujarati/Kannada transliteration, Jaro-Winkler, Indian phonetic key, given-name and surname gates, father/village/shared-record signals, reasons per match, human queue with maker-checker for anything touching money, audited confirm/reject/unlink, release of held payment after confirmation. `npm test` 155 passed; `npm run test:e2e` 45 passed | `feature/6.5-owner-reconciliation` |
+| 6.6 … 6.13 | Not started | — |
 
 ## ⚠ Read first: OneDrive
 
@@ -147,6 +148,16 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
   rejected unless every number, date and section citation survives, and it is labelled
   "AI-generated".
 - **e2e files now reseed** the story in `beforeAll`, so they pass in any order (~105 s total).
+
+- **Reconciliation never merges records.** Confirming sets a shared `identityGroupId`
+  and is audited; it can be undone. **Any link that would release money needs a person**
+  (maker-checker), however high the confidence. Auto-links (≥0.95, no money) are visible
+  and reversible.
+- **Surname and given-name gates.** A shared surname and father's name produced false
+  positives in the first run (e.g. "Namdeo Bapurao Raut" vs "… Patil" at 0.95). A
+  mismatched given name or surname now scales the score down, and different fathers cap
+  it at 0.75. Seeded candidates went from 22 to 3, with the Wankhede pair at 0.97.
+- **Co-holders on one land record are never candidates** (brothers share names).
 
 ## Log
 

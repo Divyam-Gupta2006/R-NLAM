@@ -3,7 +3,8 @@
 _Updated as work lands. The detailed log and every decision are in [PROGRESS.md](PROGRESS.md)._
 
 **Where things stand:** Phase 0, Phase 1 and sections **6.1–6.4** are done, tested and merged
-to `main` (nothing is pushed). 6.5 onwards is next.
+to `main` (nothing is pushed). **6.5 is partial** on branch `feature/6.5-owner-reconciliation`
+(backend logic and unit tests done; e2e and UI not). The session ended on a usage limit.
 
 ## 1. Done and verified
 

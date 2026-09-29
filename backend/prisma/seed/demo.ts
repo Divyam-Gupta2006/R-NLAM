@@ -20,6 +20,7 @@ import { computeClocks } from '../../src/rules/clocks';
 import { installPacks, RulesService } from '../../src/rules/rules.service';
 import { factsOf, parcelInclude } from '../../src/statutory/statutory.service';
 import { screenParcels } from '../../src/gis/gis-gate.service';
+import { runReconciliation } from '../../src/reconciliation/reconciliation.module';
 import { LocalDiskStorage } from '../../src/storage/storage';
 import { makePdf } from './pdf';
 import { corridorRect, LngLat } from './geo';
@@ -191,6 +192,7 @@ export async function seedDemo(prisma: PrismaClient) {
   await seedCitizenLogins(ctx);
   const written = await ctx.history.flush(prisma);
   const clocks = await seedClocks(prisma);
+  const identity = await runReconciliation(prisma);
   // Liability fact views read the tables just written.
   await prisma.$executeRawUnsafe('REFRESH MATERIALIZED VIEW mv_liability_s80');
   await prisma.$executeRawUnsafe('REFRESH MATERIALIZED VIEW mv_liability_additional');
@@ -204,6 +206,8 @@ export async function seedDemo(prisma: PrismaClient) {
     users: await prisma.user.count(),
     ...written,
     clocks,
+    identityCandidates: identity.candidates,
+    identityAutoLinked: identity.autoLinked,
   };
   return { mainProjectId: main.id, counts };
 }
