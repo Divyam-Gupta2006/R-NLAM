@@ -101,6 +101,8 @@ export class WhyStuckService {
           objections: { where: { status: { in: [...OPEN_OBJECTION] } }, select: { id: true, category: true, status: true, applicant: true, hearings: { select: { scheduledAt: true, status: true } } } },
           compensations: { select: { id: true, status: true, amountPaise: true, beneficiaryName: true } },
           rrCases: { select: { family: { select: { headName: true } }, grants: { where: { status: 'ASSIGNED' }, select: { amountPaise: true, entitlement: { select: { name: true } } } } } },
+          caseLinks: { where: { status: 'CONFIRMED' }, select: { courtCase: true } },
+          _count: { select: { caseLinks: { where: { status: 'CANDIDATE' } } } },
         },
       }),
       this.prisma.statutoryClock.findMany({ where: { status: { in: ['RUNNING', 'MISSED'] } } }),
@@ -417,37 +419,70 @@ export class WhyStuckService {
       });
     }
 
-    // 7. Litigation (until eCourts links arrive in 6.9): escalated title disputes
+    // 7. Litigation: confirmed court cases (6.9) that bar progress (a pending
+    // title suit, or any order of stay / status quo), and title objections
+    // escalated to court. An s.64 reference without a stay runs in parallel
+    // with payment and does not block.
     for (const p of parcels) {
       const title = p.objections.find((o) => o.category === 'TITLE' && o.status === 'ESCALATED');
-      if (!title) continue;
+      const cases = p.caseLinks.map((l) => l.courtCase).filter((c) => c.status === 'PENDING' && (c.category === 'TITLE_SUIT' || c.stayOrder));
+      if (!title && !cases.length) continue;
+      const stay = cases.find((c) => c.stayOrder);
       const clk = clockOf(p.id, 'AWARD_DEADLINE');
+      const hearings = cases.map((c) => c.nextHearingOn).filter((d): d is Date => !!d).sort((a, b) => a.getTime() - b.getTime());
+      const nextHearing = hearings[0] ?? null;
+      const caseEvidence = cases.map((c) => ({
+        label: `${c.caseNumber}, ${c.courtName}`,
+        detail: `${c.subject}. ${c.stayOrder ? 'Order of stay / status quo in force. ' : ''}${c.nextHearingOn ? `Next hearing ${istDateString(c.nextHearingOn)}.` : ''} Link confirmed by an officer${c.isSynthetic ? ' (synthetic eCourts record)' : ''}.`,
+        citation: `CNR ${c.cnr}`,
+      }));
+      const pending = p._count.caseLinks;
       drafts.push({
         key: `LIT:${p.id}`,
         type: 'LITIGATION',
         projectId: p.projectId,
-        title: `Title dispute on ${p.parcelNumber} escalated to court`,
+        title: stay ? `Court order holds ${p.parcelNumber}: ${stay.caseNumber}` : `Title dispute on ${p.parcelNumber} in court`,
         parcels: [ref(p)],
         families: p.familiesAffected,
         exposurePaise: valueAtRisk(p),
-        exposureLabel: 'Acquisition value at risk if the award lapses while the title is disputed',
+        exposureLabel: stay ? 'Acquisition value held up while the order stands' : 'Acquisition value at risk if the award lapses while the title is disputed',
         perDayPaise: liab.get(p.id)?.additionalDailyPaise ?? 0n,
-        daysToDeadline: clk ? days(clk.dueOn) : null,
+        daysToDeadline: clk ? days(clk.dueOn) : nextHearing ? days(nextHearing) : null,
         accruing: false,
         legalBar: true,
         leadTimeDays: LEAD_TIME_DAYS.LITIGATION,
         leadTimeWhy: 'typical time to a first hearing in the civil court (planning assumption)',
-        evidence: [{ label: 'Objection escalated', detail: `${title.applicant}: title dispute; civil suit pending (see candidate court links).`, citation: 'RFCTLARR 2013, s.15(2)' }],
-        brief: {
-          headline: `A family title dispute is holding up ${p.parcelNumber}`,
-          blocked: `The award for parcel ${p.parcelNumber}: an objection under s.15 is undisposed.`,
-          why: ['The objection was escalated after the hearing because a partition suit is pending in the civil court.'],
-          impact: `${p.familiesAffected} families; the award cannot be made while the objection is open.`,
-          action: 'Confirm the court case against the parcel, seek an early hearing or consider depositing the disputed share with the Authority under the Act, and dispose of the objection.',
-          owner: ownerFor(RoleName.DISTRICT_OFFICER, p.districtCode, p.stateCode),
-          deadline: clk ? istDateString(clk.dueOn) : null,
-          deadlineWhy: clk ? `s.25 award deadline (${clk.citation})` : 'No statutory deadline recorded',
-        },
+        evidence: [
+          ...caseEvidence,
+          ...(title ? [{ label: 'Objection escalated', detail: `${title.applicant}: title dispute${cases.length ? '' : '; civil suit said to be pending'}.`, citation: 'RFCTLARR 2013, s.15(2)' }] : []),
+          ...(pending ? [{ label: 'Unconfirmed court links', detail: `${pending} candidate case link(s) for this parcel await an officer's decision.`, citation: 'eCourts candidate links' }] : []),
+        ],
+        brief: stay
+          ? {
+              headline: `A court order holds up ${p.parcelNumber}: ${stay.caseNumber} (${stay.courtName})`,
+              blocked: `Any step on parcel ${p.parcelNumber} that the order covers.`,
+              why: [`${stay.subject}.`, 'The order binds the Collector until it is varied or the case is disposed of.'],
+              impact: `${p.familiesAffected} families; ${formatInr(valueAtRisk(p))} of acquisition value is held up.`,
+              action: `Brief the government pleader before the hearing${stay.nextHearingOn ? ` on ${istDateString(stay.nextHearingOn)}` : ''}; fix what the petition complains of so the order can be vacated; take no step the order forbids.`,
+              owner: ownerFor(RoleName.DISTRICT_OFFICER, p.districtCode, p.stateCode),
+              deadline: stay.nextHearingOn ? istDateString(stay.nextHearingOn) : null,
+              deadlineWhy: stay.nextHearingOn ? `next hearing in ${stay.caseNumber}` : 'No hearing date listed',
+            }
+          : {
+              headline: `A family title dispute is holding up ${p.parcelNumber}`,
+              blocked: `The award for parcel ${p.parcelNumber}${title ? ': an objection under s.15 is undisposed' : ''}.`,
+              why: [
+                cases.length ? `A title suit is pending: ${cases.map((c) => `${c.caseNumber} (${c.courtName})`).join('; ')}.` : 'The objection was escalated after the hearing because a civil suit is said to be pending.',
+                ...(title ? ['The award cannot be made while the s.15 objection is open.'] : []),
+              ],
+              impact: `${p.familiesAffected} families; ${clk ? `the award must be made by ${istDateString(clk.dueOn)} or the proceedings lapse` : 'the award cannot proceed'}.`,
+              action: cases.length
+                ? `Seek an early hearing${nextHearing ? ` (next listed ${istDateString(nextHearing)})` : ''}; consider making the award and depositing the disputed share with the Authority so the dispute does not stop the award; dispose of the objection.`
+                : 'Confirm the court case against the parcel (Court case links), seek an early hearing or consider depositing the disputed share with the Authority, and dispose of the objection.',
+              owner: ownerFor(RoleName.DISTRICT_OFFICER, p.districtCode, p.stateCode),
+              deadline: clk ? istDateString(clk.dueOn) : nextHearing ? istDateString(nextHearing) : null,
+              deadlineWhy: clk ? `s.25 award deadline (${clk.citation})` : nextHearing ? 'next hearing' : 'No statutory deadline recorded',
+            },
       });
     }
 

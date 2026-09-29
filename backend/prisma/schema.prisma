@@ -322,6 +322,7 @@ model Parcel {
 
   notices       StatutoryNotice[]
   holders       ParcelHolder[]
+  caseLinks     CaseLink[]
   verifications ParcelVerification[]
   objections    Objection[]
   awards        Award[]
@@ -979,4 +980,72 @@ model DocumentExtraction {
   createdAt              DateTime         @default(now())
 
   @@index([documentId, createdAt])
+}
+
+enum CourtCaseCategory {
+  TITLE_SUIT // partition, declaration of title, injunction over the land itself
+  LAR_REFERENCE // s.64 reference to the LARR Authority against an award
+  WRIT_PETITION
+  OTHER
+}
+
+enum CourtCaseStatus {
+  PENDING
+  DISPOSED
+}
+
+enum CaseLinkStatus {
+  CANDIDATE
+  CONFIRMED
+  REJECTED
+}
+
+/// A court case as fetched from eCourts/NJDG (6.9). The default adapter is
+/// synthetic; `source` says where each record came from.
+model CourtCase {
+  id            String            @id @default(uuid())
+  cnr           String            @unique // eCourts Case Number Record
+  courtName     String
+  caseType      String // as the court registers it, e.g. "Special Civil Suit"
+  caseNumber    String
+  category      CourtCaseCategory
+  status        CourtCaseStatus
+  stayOrder     Boolean           @default(false)
+  filedOn       DateTime
+  nextHearingOn DateTime?
+  disposedOn    DateTime?
+  petitioners   String[]
+  respondents   String[]
+  subject       String
+  surveyNumbers String[]
+  villageName   String?
+  districtCode  String
+  source        String            @default("ECOURTS_SYNTHETIC")
+  isSynthetic   Boolean           @default(true)
+  fetchedAt     DateTime          @default(now())
+
+  links CaseLink[]
+
+  @@index([districtCode])
+}
+
+/// A proposed link between a court case and a parcel. Always a candidate
+/// until an officer confirms or rejects it; only confirmed links count.
+model CaseLink {
+  id           String         @id @default(uuid())
+  courtCaseId  String
+  courtCase    CourtCase      @relation(fields: [courtCaseId], references: [id], onDelete: Cascade)
+  parcelId     String
+  parcel       Parcel         @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+  score        Float
+  reasons      Json // [{ signal, detail, weight }]
+  status       CaseLinkStatus @default(CANDIDATE)
+  reviewNote   String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([courtCaseId, parcelId])
+  @@index([parcelId, status])
 }

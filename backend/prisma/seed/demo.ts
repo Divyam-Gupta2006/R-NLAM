@@ -21,6 +21,8 @@ import { installPacks, RulesService } from '../../src/rules/rules.service';
 import { factsOf, parcelInclude } from '../../src/statutory/statutory.service';
 import { screenParcels } from '../../src/gis/gis-gate.service';
 import { runReconciliation } from '../../src/reconciliation/reconciliation.module';
+import { syncCourtCases } from '../../src/court/court.module';
+import { SyntheticEcourtsAdapter } from '../../src/court/ecourts.adapter';
 import { sealAudit } from '../../src/audit/merkle.service';
 import { LocalDiskStorage } from '../../src/storage/storage';
 import { makePdf } from './pdf';
@@ -195,6 +197,8 @@ export async function seedDemo(prisma: PrismaClient) {
   const written = await ctx.history.flush(prisma);
   const clocks = await seedClocks(prisma);
   const identity = await runReconciliation(prisma);
+  // Synthetic eCourts cases and candidate links; officers confirm them in the demo.
+  const courts = await syncCourtCases(prisma, new SyntheticEcourtsAdapter());
   // Seal the historical audit trail into one Merkle root per IST day.
   const merkle = await sealAudit(prisma, new Date());
   // Liability fact views read the tables just written.
@@ -213,6 +217,8 @@ export async function seedDemo(prisma: PrismaClient) {
     identityCandidates: identity.candidates,
     identityAutoLinked: identity.autoLinked,
     merkleRoots: merkle.sealed,
+    courtCases: courts.cases,
+    courtLinkCandidates: courts.candidates,
   };
   return { mainProjectId: main.id, counts };
 }
