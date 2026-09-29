@@ -7,7 +7,7 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recha
 import { STAGE_COLORS } from '@/components/map/map-types';
 import { DataState, Spinner } from '@/components/ui';
 import { useApi } from '@/lib/api/hooks';
-import { humanize, inr, inrShort, num } from '@/lib/format';
+import { dateIST, humanize, inr, inrShort, num } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { LiabilitySummary } from './LiabilityView';
 
@@ -101,20 +101,26 @@ function IstClock() {
 }
 
 function ProjectsByStage({ rows }: { rows: CommandSummary['projectsByStage'] }) {
-  const data = rows.map((p) => ({ label: `${p.code} · ${p.total}`, full: `${p.name} (${p.stateName}), ${p.total} parcels`, ...p.stages }));
+  // Shares of each project's parcels, so small projects read as clearly as the big one.
+  const data = rows.map((p) => ({
+    label: `${p.code} · ${p.total}`,
+    full: `${p.name} (${p.stateName}), ${p.total} parcels`,
+    counts: p.stages,
+    ...Object.fromEntries(Object.entries(p.stages).map(([k, v]) => [k, p.total ? (v / p.total) * 100 : 0])),
+  }));
   const used = STAGE_ORDER.filter((s) => rows.some((p) => p.stages[s] > 0));
   return (
     <div>
       <div className="h-[260px]" role="img" aria-label={`Parcels by stage for ${rows.length} projects`}>
         <ResponsiveContainer>
-          <BarChart data={data} layout="vertical" stackOffset="expand" margin={{ top: 0, right: 12, bottom: 0, left: 8 }}>
-            <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11 }} tickFormatter={(v: number) => `${Math.round(v * 100)}%`} />
+          <BarChart data={data} layout="vertical" margin={{ top: 0, right: 12, bottom: 0, left: 8 }}>
+            <XAxis type="number" domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11 }} tickFormatter={(v: number) => `${v}%`} />
             <YAxis type="category" dataKey="label" width={150} tick={{ fill: 'white', fontSize: 12, fontWeight: 600 }} />
             <Tooltip
               cursor={{ fill: 'rgba(255,255,255,0.06)' }}
               contentStyle={{ background: '#0b1f3a', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }}
               labelFormatter={(_l, p) => (p?.[0]?.payload as { full?: string })?.full ?? ''}
-              formatter={(v: number, k: string) => [`${v} parcels`, humanize(k)]}
+              formatter={(v, k, item) => [`${(item.payload as { counts: Record<string, number> }).counts[String(k)]} parcels (${Math.round(Number(v))}%)`, humanize(String(k))]}
             />
             {used.map((s) => (
               <Bar key={s} dataKey={s} stackId="a" fill={STAGE_COLORS[s] ?? '#64748b'} />
@@ -213,7 +219,7 @@ export function CommandView() {
                           <p className="text-sm text-white/90">{p.top.headline}</p>
                           <p className="text-xs text-white/60">
                             <span className="text-saffron">Do:</span> {p.top.action}
-                            {p.top.deadline ? ` · by ${p.top.deadline}` : ''} · {p.top.owner.names[0] ?? humanize(p.top.owner.role)}
+                            {p.top.deadline ? ` · by ${dateIST(p.top.deadline)}` : ''} · {p.top.owner.names[0] ?? humanize(p.top.owner.role)}
                           </p>
                           <p className="mt-1 flex flex-wrap gap-1">
                             {Object.entries(p.byType).map(([t, n]) => (

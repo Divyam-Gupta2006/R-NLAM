@@ -193,7 +193,7 @@ export function CitizenHome() {
                 </Box>
               );
             })}
-            {d.rrCases.length > 0 && (
+            {d.rrCases.some((rc) => rc.grants.length > 0) && (
               <Box title={t('rrHomeTitle')}>
                 {d.rrCases.map((rc) => (
                   <ul key={rc.id} className="space-y-1">

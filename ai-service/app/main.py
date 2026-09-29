@@ -29,6 +29,14 @@ app.add_middleware(
 
 # Register API Routers under /api/v1
 app.include_router(documents_router, prefix="/api/v1")
+
+
+@app.on_event("startup")
+def warm_legal_index() -> None:
+    # Build the Act index once at start, so the first question answers instantly.
+    from app.services.legal_rag import index
+
+    index()
 app.include_router(risk_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
 

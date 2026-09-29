@@ -1,24 +1,27 @@
 'use client';
 
-import { CloudOff, CloudUpload, RefreshCw } from 'lucide-react';
+import { CloudOff, CloudUpload, RefreshCw, WifiOff } from 'lucide-react';
 import Link from 'next/link';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useToast } from '@/context/ToastContext';
-import { listBundles, QUEUE_EVENT, syncNow } from '@/lib/field/queue';
+import { isForcedOffline, isOnline, listBundles, ONLINE_EVENT, QUEUE_EVENT, setForceOffline, syncNow } from '@/lib/field/queue';
 import { cn } from '@/lib/utils';
 
-/** Online/offline state of the browser, kept current. */
+const isForcedOfflineSafe = () => (typeof window === 'undefined' ? false : isForcedOffline());
+
+/** Online/offline state (the browser's, or the demo "Work offline" switch), kept current. */
 export function useOnline(): boolean {
   const [online, setOnline] = useState(true);
   useEffect(() => {
-    setOnline(navigator.onLine);
-    const up = () => setOnline(true);
-    const down = () => setOnline(false);
-    window.addEventListener('online', up);
-    window.addEventListener('offline', down);
+    const update = () => setOnline(isOnline());
+    update();
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    window.addEventListener(ONLINE_EVENT, update);
     return () => {
-      window.removeEventListener('online', up);
-      window.removeEventListener('offline', down);
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+      window.removeEventListener(ONLINE_EVENT, update);
     };
   }, []);
   return online;
@@ -114,8 +117,12 @@ export function FieldRuntime() {
         {counts.waiting} waiting to upload{counts.conflicts ? ` · ${counts.conflicts} conflict(s)` : ''}
         {counts.refused ? ` · ${counts.refused} refused` : ''}
       </Link>
+      <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-current px-2 py-0.5 text-xs" title="Demo: behave as if the network were gone">
+        <input type="checkbox" className="h-3.5 w-3.5 accent-current" checked={!online && isForcedOfflineSafe()} onChange={(e) => setForceOffline(e.target.checked)} />
+        <WifiOff className="h-3.5 w-3.5" aria-hidden /> Work offline
+      </label>
       {online && counts.waiting > 0 && (
-        <button className="ml-auto inline-flex items-center gap-1 rounded-md border border-current px-2 py-0.5 text-xs" onClick={() => void run(true)} disabled={syncing}>
+        <button className="inline-flex items-center gap-1 rounded-md border border-current px-2 py-0.5 text-xs" onClick={() => void run(true)} disabled={syncing}>
           <RefreshCw className={cn('h-3.5 w-3.5', syncing && 'animate-spin')} aria-hidden /> Sync now
         </button>
       )}

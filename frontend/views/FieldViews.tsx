@@ -11,7 +11,7 @@ import { api, ApiError, qs } from '@/lib/api/client';
 import { useApi } from '@/lib/api/hooks';
 import type { Paged, Parcel } from '@/lib/api/types';
 import { accuracyBand, averageFixes, closeRing, EvidenceBundle, Fix, LngLat, ringAreaSqm, sealBundle, sha256Hex } from '@/lib/field/bundle';
-import { clearSynced, deviceId, lastSeen, listBundles, putBundle, QUEUE_EVENT, QueuedBundle, QueuedPhoto, resetDevice, syncNow } from '@/lib/field/queue';
+import { clearSynced, deviceId, isOnline, lastSeen, listBundles, putBundle, QUEUE_EVENT, QueuedBundle, QueuedPhoto, resetDevice, syncNow } from '@/lib/field/queue';
 import { dateTimeIST, humanize } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -273,7 +273,7 @@ export function FieldCaptureView() {
       setSealed(q);
       resetCapture();
       gnss.stop();
-      if (navigator.onLine) void syncNow();
+      if (isOnline()) void syncNow();
     } catch (e) {
       toast('error', 'Could not save on this device', (e as Error).message);
     } finally {

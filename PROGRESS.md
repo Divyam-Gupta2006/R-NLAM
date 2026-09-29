@@ -35,7 +35,11 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
 
 ## Needs Parvati
 
-1. **Finish the database from your own PowerShell (one command).** The Claude desktop app
+0. **Demo-video pass (29 Sep evening): blockers only.** None blocking the recording. Still
+   unverified: service-worker registration in a normal Chrome (not needed for the video).
+   *Resolved:* item 1 below. The cluster now lives at `C:\dev\rnlam-pg` (not redirected by
+   packaged apps), migrated and seeded, and confirmed from a fresh `psql` process.
+1. **~~Finish the database from your own PowerShell~~ (resolved 29 Sep, see 0).** The Claude desktop app
    is an MSIX-packaged app, and Windows silently redirects anything it writes under
    `%LOCALAPPDATA%` into its private package folder. So:
    - Your real cluster at `%LOCALAPPDATA%\rnlam-pg\data` is initialised (PG binaries plus

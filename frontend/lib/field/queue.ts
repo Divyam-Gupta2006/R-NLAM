@@ -60,6 +60,37 @@ async function tx<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBReq
 
 const changed = () => window.dispatchEvent(new CustomEvent(QUEUE_EVENT));
 
+/**
+ * "Work offline" switch for demos: behaves exactly as if the network were gone
+ * (capture queues, sync waits), without unplugging anything.
+ */
+const FORCE_OFFLINE = 'rnlam.field.forceOffline';
+export const ONLINE_EVENT = 'rnlam:field-online';
+export function isOnline(): boolean {
+  try {
+    if (localStorage.getItem(FORCE_OFFLINE) === '1') return false;
+  } catch {
+    /* no storage */
+  }
+  return navigator.onLine;
+}
+export function setForceOffline(on: boolean) {
+  try {
+    if (on) localStorage.setItem(FORCE_OFFLINE, '1');
+    else localStorage.removeItem(FORCE_OFFLINE);
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(new CustomEvent(ONLINE_EVENT));
+}
+export function isForcedOffline(): boolean {
+  try {
+    return localStorage.getItem(FORCE_OFFLINE) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export async function putBundle(b: QueuedBundle) {
   await tx('readwrite', (s) => s.put(b));
   changed();
@@ -111,7 +142,7 @@ export function syncNow(): Promise<SyncResult> {
 }
 
 async function doSync(): Promise<SyncResult> {
-  const r: SyncResult = { attempted: 0, synced: 0, conflicts: 0, refused: 0, failed: 0, offline: !navigator.onLine, needsLogin: false };
+  const r: SyncResult = { attempted: 0, synced: 0, conflicts: 0, refused: 0, failed: 0, offline: !isOnline(), needsLogin: false };
   if (r.offline) return r;
   const token = tokenStore.get();
   const pending = (await listBundles()).filter((b) => b.status === 'QUEUED' || b.status === 'ERROR' || b.status === 'SYNCING');

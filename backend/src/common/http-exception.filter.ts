@@ -20,7 +20,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       res.status(HttpStatus.CONFLICT).json({
         statusCode: HttpStatus.CONFLICT,
         error: 'TRANSITION_BLOCKED',
-        message: `${exception.entityType} cannot ${exception.event}: ${exception.blockers.map((b) => b.message).join(' ')}`,
+        // Plain words for the headline; the blockers themselves follow in `blockers`.
+        message: `Blocked by law: ${exception.event.toLowerCase().replace(/_/g, ' ')} is not allowed until the ${exception.blockers.length === 1 ? 'condition below is' : `${exception.blockers.length} conditions below are`} met.`,
         blockers: exception.blockers,
       });
       return;

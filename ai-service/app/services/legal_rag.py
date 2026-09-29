@@ -147,7 +147,7 @@ def load_rule_packs() -> list[Passage]:
                 Passage(
                     id=f"{p['code']}:{e['key']}",
                     citation=e["citation"] + (" (unverified)" if e.get("unverified") else ""),
-                    title=f"{p['code']} · {e['label']}",
+                    title=e["label"],
                     text=text,
                     source="rule-pack",
                     short_label=e["label"],

@@ -23,7 +23,8 @@ function FitBounds({ data, focus }: { data: GeoJSON.FeatureCollection; focus: Se
       const el = map.getContainer();
       if (el.clientWidth < 50 || el.clientHeight < 50) return;
       map.invalidateSize();
-      map.fitBounds(b, { padding: [32, 32], maxZoom: focus.size ? 15 : 14 });
+      // One or two parcels (a citizen's land): come in close; many: keep context.
+      map.fitBounds(b, { padding: [32, 32], maxZoom: target.features.length <= 2 ? 17 : focus.size ? 15 : 14 });
       fitted = true;
     };
     fit();
