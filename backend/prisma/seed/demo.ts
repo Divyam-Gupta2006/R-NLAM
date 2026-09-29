@@ -14,7 +14,7 @@ import * as crypto from 'crypto';
 import { calculateAward } from '../../src/awards/award-calculator';
 import { splitByShare } from '../../src/awards/split';
 import { addDays, parseIstDate } from '../../src/common/dates';
-import { rupeesToPaise } from '../../src/common/money';
+import { formatInr, rupeesToPaise } from '../../src/common/money';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { computeClocks } from '../../src/rules/clocks';
 import { installPacks, RulesService } from '../../src/rules/rules.service';
@@ -190,6 +190,7 @@ export async function seedDemo(prisma: PrismaClient) {
   const main = await seedMainProject(ctx);
   for (const p of OTHER_PROJECTS) await seedOtherProject(ctx, p);
   await seedConstraintLayers(ctx);
+  await seedAwardCopy(ctx);
   await seedCitizenLogins(ctx);
   const written = await ctx.history.flush(prisma);
   const clocks = await seedClocks(prisma);
@@ -1044,7 +1045,7 @@ const mid = (a: Pt, b: Pt): Pt => mul(add(a, b), 0.5);
 const poly = (pts: Pt[]) => ({ type: 'Polygon', coordinates: [[...pts, pts[0]].map(([x, y]) => [Math.round(x * 1e7) / 1e7, Math.round(y * 1e7) / 1e7])] });
 
 /** Store a small real PDF and register it as a document on a parcel. */
-async function seedDocument(ctx: Ctx, parcelId: string, projectId: string, kind: 'GRAM_SABHA_CONSENT' | 'FOREST_CLEARANCE' | 'FRA_SETTLEMENT_CERTIFICATE', title: string, referenceNo: string, issuedOn: Date, lines: string[]) {
+async function seedDocument(ctx: Ctx, parcelId: string, projectId: string, kind: 'GRAM_SABHA_CONSENT' | 'FOREST_CLEARANCE' | 'FRA_SETTLEMENT_CERTIFICATE' | 'AWARD_COPY', title: string, referenceNo: string, issuedOn: Date, lines: string[]) {
   const storage = new LocalDiskStorage();
   const key = `documents/seed/${referenceNo.replace(/[^A-Za-z0-9-]/g, '_')}.pdf`;
   const stored = await storage.put(key, makePdf(title, [`Reference: ${referenceNo}`, `Issued: ${issuedOn.toISOString().slice(0, 10)}`, ...lines]));
@@ -1053,6 +1054,37 @@ async function seedDocument(ctx: Ctx, parcelId: string, projectId: string, kind:
   });
   ctx.history.audit({ action: 'DOCUMENT_UPLOADED', entityType: 'Document', entityId: doc.id, at: issuedOn, actor: actor(ctx.users.collectorYavatmal), newState: { kind, sha256: stored.sha256, parcelId, referenceNo } });
   return doc;
+}
+
+/**
+ * A copy of the live-payment parcel's award as a real (synthetic) PDF, written
+ * from the award row itself, so document extraction (6.8) has something true
+ * to read and every proposed field can be checked against the database.
+ */
+async function seedAwardCopy(ctx: Ctx) {
+  const parcel = await ctx.prisma.parcel.findFirstOrThrow({
+    where: { parcelNumber: STORY.livePayParcel },
+    include: { awards: { orderBy: { awardDate: 'desc' }, take: 1 }, holders: { include: { person: true } } },
+  });
+  const award = parcel.awards[0];
+  if (!award) return;
+  const rs = (p: bigint) => formatInr(p).replace('₹', 'Rs. ').replace(/\.00$/, '');
+  const d = award.awardDate;
+  const longDate = `${d.getUTCDate()} ${d.toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' })} ${d.getUTCFullYear()}`;
+  await seedDocument(ctx, parcel.id, parcel.projectId, 'AWARD_COPY', `Award under section 23, ${parcel.parcelNumber}`, award.awardNumber, award.awardDate, [
+    `Award No: ${award.awardNumber}`,
+    'Award under section 23 of the RFCTLARR Act, 2013',
+    `Village: ${parcel.villageName}`,
+    `District: ${parcel.districtName}`,
+    `Survey No. ${parcel.surveyNumber}`,
+    ...parcel.holders.map((h) => `Name of the owner: ${h.nameAsRecorded} (share ${h.sharePct}%)`),
+    `Area acquired: ${parcel.acquiredAreaHa || parcel.totalAreaHa} hectares`,
+    `Market value: ${rs(award.marketValuePaise)}`,
+    `Solatium (section 30(1)): ${rs(award.solatiumPaise)}`,
+    `Additional amount (section 30(3)): ${rs(award.additionalAmountPaise)}`,
+    `Total compensation: ${rs(award.totalPaise)}`,
+    `Date of award: ${longDate}`,
+  ]);
 }
 
 /**

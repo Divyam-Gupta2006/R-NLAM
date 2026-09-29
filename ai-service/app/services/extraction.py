@@ -83,6 +83,7 @@ def owner_names(text: str) -> list[Field]:
     out: dict[str, Field] = {}
     for m in re.finditer(label + r"[^\S\n]*(?:name)?[^\S\n]*[:\-][^\S\n]*([^\n,;:]{3,60})", text, flags=re.IGNORECASE):
         name = re.sub(r"\s+(s/o|d/o|w/o|son of|daughter of|wife of)\b.*$", "", m.group(1).strip(), flags=re.IGNORECASE).strip(" .")
+        name = re.sub(r"\s*\([^)]*\)?\s*$", "", name).strip(" .")  # trailing notes such as "(share 50%)"
         if len(name) < 3 or re.search(r"\d", name):
             continue
         conf = 0.88 if len(name.split()) >= 2 else 0.7
@@ -117,7 +118,7 @@ def amounts(text: str) -> list[Field]:
         elif mult in ("crore", "cr", "कोटी"):
             value *= 1e7
         context = text[max(0, m.start() - 60) : m.start()].lower()
-        labelled = any(k in context for k in ("compensation", "award", "solatium", "amount", "total", "मोबदला", "रक्कम", "एकूण"))
+        labelled = any(k in context for k in ("compensation", "award", "solatium", "amount", "total", "market value", "मोबदला", "रक्कम", "एकूण", "बाजारमूल्य"))
         out.append(Field(round(value, 2), 0.9 if labelled else 0.75, _snippet(text, m.start(), m.end())))
     return out
 
@@ -171,7 +172,7 @@ def extract(text: str, method: str = "plain-text", confidence_factor: float = 1.
         "village": single(t, r"(?:village|mauza|गाव|मौजा)", r"[^\n,;]{2,40}", 0.85),
         "district": single(t, r"(?:district|जिल्हा|जिला)", r"[^\n,;]{2,30}", 0.85),
         "award_number": single(t, r"(?:award|निवाडा)\s*(?:no\.?|number|क्र\.?)", r"[A-Za-z0-9/\-]{3,40}", 0.9),
-        "reference_number": single(t, r"(?:ref(?:erence)?\.?\s*no\.?|no\.)", r"[A-Za-z0-9/\-.]{4,40}", 0.75),
+        "reference_number": single(t, r"(?:ref(?:erence)?\.?(?:\s*no\.?)?|no\.)", r"[A-Za-z0-9/\-.]{4,40}", 0.75),
     }
     needs = False
     for fs in fields.values():

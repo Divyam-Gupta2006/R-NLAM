@@ -52,6 +52,14 @@ def test_english_award_fields():
     assert values(r, "award_number") == ["LA/WRD/NH-WY/2025/017"]
 
 
+def test_owner_notes_market_value_and_reference():
+    r = extract("Reference: AWD/MH-WRD/2026/0029\nName of the owner: Pandurang Shankarrao Dhote (share 100%)\nMarket value: Rs. 13,12,280")
+    assert values(r, "owner_names") == ["Pandurang Shankarrao Dhote"]
+    assert values(r, "amounts_inr") == [1312280]
+    assert not r.fields["amounts_inr"][0].needs_review
+    assert values(r, "reference_number") == ["AWD/MH-WRD/2026/0029"]
+
+
 def test_every_field_has_evidence_from_the_text():
     r = extract(ENGLISH_AWARD)
     flat = " ".join(ENGLISH_AWARD.split())
