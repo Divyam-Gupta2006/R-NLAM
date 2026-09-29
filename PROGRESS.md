@@ -12,7 +12,8 @@ Living log of the SIH 2026 finalist build. Newest status first. Evidence for eve
 | Phase 1: auth, DTOs, migrations, state machine, audit, outbox, seed | Done: `npm test` 43 passed, `npm run test:e2e` 18 passed | `phase1-backend-core` (merged) |
 | Phase 1: frontend mock removal | Done: `lib/mockData.ts` deleted; `npx tsc --noEmit` clean; `next build` 105/105 pages; browser-checked login, national dashboard, parcel page (blocked possession shows the s.38(1) blocker), work queue, finance, R&R | `phase1-frontend` (merged) |
 | 6.1 statutory rule engine | Done: verified rule packs, statutory clocks, T-60/30/7 alerts, lapse guards, calendar and rule-pack UI. `npm test` 64 passed; `npm run test:e2e` 24 passed | `feature/6.1-rule-engine` |
-| 6.2 … 6.13 | Not started | — |
+| 6.2 live interest liability + roll-up | Done: s.80 interest and s.30(3) additional amount, live counter, trend, nation→parcel drill-down, act-this-week ranking. `npm test` 75 passed; `npm run test:e2e` 28 passed | `feature/6.2-interest-liability` |
+| 6.3 … 6.13 | Not started | — |
 
 ## ⚠ Read first: OneDrive
 
@@ -95,6 +96,23 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
 - **Browser checks used the production build** (`next start`, about 200 MB) alongside
   the backend. Checking pages needs both, and this was the lightest way; I stopped both
   afterwards.
+
+- **What "interest" means here follows the Act.** s.80 interest arises only on
+  compensation unpaid **at possession** (9% p.a., 15% after a year). Payment that is late
+  after the award but before possession carries no statutory interest, so it shows as a
+  missed s.38 deadline, not as interest. The second accruing cost is the s.30(3) additional
+  amount (12% p.a. on market value) while awards are pending. Both are shown, separately
+  labelled.
+- **An s.40 urgency story, so s.80 interest exists in the demo.** Four Borgaon
+  "river-bridge approach" parcels were taken on 20 Aug 2025 under an urgency direction;
+  co-holders are unpaid, so interest is at the 15% stage. A guarded
+  `TAKE_POSSESSION_URGENCY` transition needs a recorded urgency order.
+- **"Savings" are defined, not invented.** Pay-this-week saves the next 12 months of s.80
+  interest if the line would otherwise stay unpaid. Declare-this-week saves the additional
+  amount from now until the s.25 award deadline (the latest the award can lawfully come).
+- **Materialized views hold the facts; TypeScript does the money.** `mv_liability_s80` and
+  `mv_liability_additional` (refreshed concurrently after writes) replace ClickHouse at
+  this scale. Rupee arithmetic stays in tested BigInt code.
 
 ## Log
 

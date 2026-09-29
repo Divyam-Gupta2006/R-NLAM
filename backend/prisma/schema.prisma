@@ -314,6 +314,8 @@ model Parcel {
   areaSqm              Float? // maintained by trigger from geom
   geom                 Unsupported("geometry(MultiPolygon,4326)")? // PostGIS; set by trigger
   familiesAffected     Int                                         @default(0)
+  /// s.40 urgency direction under which possession preceded the award/payment
+  urgencyOrderRef      String?
   isSynthetic          Boolean                                     @default(true)
   createdAt            DateTime                                    @default(now())
   updatedAt            DateTime                                    @updatedAt

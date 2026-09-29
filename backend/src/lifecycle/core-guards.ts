@@ -121,3 +121,19 @@ export const hearingHeld: Guard = {
       : [{ code: 'NOT_HEARD', message: 'The objector has not been heard yet.', citation: 'RFCTLARR 2013, s.15(2)', overridable: false }];
   },
 };
+
+/** s.40: possession before award/payment only under a recorded urgency direction. */
+export const urgencyDirectionRecorded: Guard = {
+  name: 'urgencyDirectionRecorded',
+  async check({ entity }: GuardContext): Promise<Blocker[]> {
+    if (entity.urgencyOrderRef) return [];
+    return [
+      {
+        code: 'NO_URGENCY_DIRECTION',
+        message: 'Possession before payment needs a Government urgency direction under s.40 recorded on the parcel.',
+        citation: 'RFCTLARR 2013, s.40(1)',
+        overridable: false,
+      },
+    ];
+  },
+};

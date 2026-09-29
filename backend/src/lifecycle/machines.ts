@@ -9,6 +9,7 @@ import {
   hearingHeld,
   noOpenObjections,
   rrEntitlementsDelivered,
+  urgencyDirectionRecorded,
 } from './core-guards';
 import { MachineDef } from './lifecycle.types';
 
@@ -33,6 +34,7 @@ export const parcelMachine: MachineDef = {
     { event: 'DECLARE_AWARD', label: 'Declare award (s.23)', from: ['DECLARED'], to: 'AWARDED', roles: R.ACQUISITION, guards: [noOpenObjections, awardExists], domainOnly: true },
     { event: 'COMPLETE_PAYMENT', label: 'All compensation paid', from: ['AWARDED'], to: 'COMPENSATION_PAID', roles: R.FINANCE, guards: [allCompensationPaid] },
     { event: 'TAKE_POSSESSION', label: 'Take possession (s.38)', from: ['COMPENSATION_PAID'], to: 'POSSESSION_TAKEN', roles: [CENTRAL_ADMIN, STATE_ADMIN, DISTRICT_OFFICER, FIELD_OFFICER], guards: [allCompensationPaid, rrEntitlementsDelivered], domainOnly: true },
+    { event: 'TAKE_POSSESSION_URGENCY', label: 'Urgency possession (s.40)', from: ['DECLARED', 'AWARDED'], to: 'POSSESSION_TAKEN', roles: [CENTRAL_ADMIN, STATE_ADMIN, DISTRICT_OFFICER], guards: [urgencyDirectionRecorded], domainOnly: true },
     { event: 'HAND_OVER', label: 'Hand over to requiring body', from: ['POSSESSION_TAKEN'], to: 'HANDED_OVER', roles: [CENTRAL_ADMIN, STATE_ADMIN, DISTRICT_OFFICER], domainOnly: true },
     { event: 'LAPSE', label: 'Proceedings lapsed', from: ['PRELIM_NOTIFIED', 'DECLARED'], to: 'LAPSED', roles: R.ACQUISITION },
     { event: 'WITHDRAW', label: 'Withdraw from acquisition (s.93)', from: ['IDENTIFIED', 'PRELIM_NOTIFIED', 'DECLARED'], to: 'WITHDRAWN', roles: [CENTRAL_ADMIN, STATE_ADMIN] },
