@@ -3,6 +3,7 @@
 import { Download, FileUp, ShieldAlert } from 'lucide-react';
 import React, { useState } from 'react';
 import { IntegrityBadge } from '@/components/IntegrityBadge';
+import { verifyInclusionInBrowser } from '@/lib/merkle';
 import { Badge, Card, DataState, Dialog, EmptyState, PageHeader, Select, Spinner, Stat, StatusBadge, SyntheticTag, Table } from '@/components/ui';
 import { useUser } from '@/context/SessionContext';
 import { useToast } from '@/context/ToastContext';
@@ -20,7 +21,10 @@ export function AuditView({ eyebrow }: { eyebrow?: string }) {
   const [open, setOpen] = useState<AuditEntry | null>(null);
   return (
     <div>
-      <PageHeader eyebrow={eyebrow} title="Audit trail" subtitle="Every write, hash-chained with SHA-256 over all stored fields. Verification recomputes the whole chain on the server." actions={<IntegrityBadge />} />
+      <PageHeader eyebrow={eyebrow} title="Audit trail" subtitle="Every write, hash-chained with SHA-256 over all stored fields and sealed daily into Merkle roots. Verification recomputes the whole chain and every root." actions={<IntegrityBadge />} />
+      <div className="mb-5">
+        <MerkleRoots />
+      </div>
       <Card>
         <DataState state={state} isEmpty={() => false}>
           {(rows) => (
@@ -86,9 +90,88 @@ export function AuditView({ eyebrow }: { eyebrow?: string }) {
             <dt className="text-ink-muted">Hash</dt>
             <dd><code className="break-all text-xs">{open.hash}</code></dd>
           </dl>
+          <ProofPanel seq={open.seq} entryHash={open.hash} />
         </Dialog>
       )}
     </div>
+  );
+}
+
+interface Proof {
+  sealed: boolean;
+  message?: string;
+  index: number;
+  treeSize: number;
+  path: string[];
+  verified: boolean;
+  algorithm: string;
+  root: { period: string; root: string; chainHash: string; leafCount: number; fromSeq: number; toSeq: number };
+}
+
+/** Inclusion proof for one entry, re-verified in this browser with WebCrypto. */
+function ProofPanel({ seq, entryHash }: { seq: number; entryHash: string }) {
+  const [proof, setProof] = useState<Proof | null>(null);
+  const [local, setLocal] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="mt-4 rounded-lg border border-line p-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-semibold">Merkle inclusion proof</p>
+        <button
+          className="btn-ghost py-1"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              const p = await api.get<Proof>(`/audit/entries/${seq}/proof`);
+              setProof(p);
+              setLocal(p.sealed ? await verifyInclusionInBrowser(entryHash, p.index, p.treeSize, p.path, p.root.root) : null);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {busy && <Spinner />} Get proof and verify here
+        </button>
+      </div>
+      {proof && !proof.sealed && <p className="mt-2 text-xs text-ink-muted">{proof.message}</p>}
+      {proof?.sealed && (
+        <div className="mt-2 space-y-1 text-xs">
+          <p>
+            Sealed in the <strong>{proof.root.period}</strong> root (entries #{proof.root.fromSeq}–#{proof.root.toSeq}, {proof.root.leafCount} leaves); this entry is leaf {proof.index}.
+          </p>
+          <p>
+            Root <code className="break-all">{proof.root.root}</code>
+          </p>
+          <p>Path: {proof.path.length} sibling hashes (log₂ of the tree size).</p>
+          <p className={local ? 'font-bold text-bharat' : 'font-bold text-danger'}>
+            {local ? '✓ Verified in your browser (WebCrypto SHA-256), independently of the server' : '✗ Does not verify in your browser'}
+          </p>
+          <p className="text-ink-muted">{proof.algorithm}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MerkleRoots() {
+  const state = useApi<Array<{ id: string; period: string; fromSeq: number; toSeq: number; leafCount: number; root: string; chainHash: string; sealedAt: string }>>('/audit/merkle/roots');
+  return (
+    <Card title="Merkle roots" subtitle="One root per IST day over that day's entries; roots are chained, so rewriting history needs every later root rewritten too">
+      <DataState state={state} empty={<EmptyState title="Nothing sealed yet" />}>
+        {(rows) => (
+          <ul className="max-h-72 divide-y divide-line overflow-y-auto text-xs">
+            {rows.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+                <span className="font-semibold">{r.period}</span>
+                <span className="text-ink-muted">#{r.fromSeq}–#{r.toSeq} · {r.leafCount} entries</span>
+                <code title={`chain ${r.chainHash}`}>{r.root.slice(0, 20)}…</code>
+              </li>
+            ))}
+          </ul>
+        )}
+      </DataState>
+    </Card>
   );
 }
 

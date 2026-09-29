@@ -17,7 +17,8 @@ Living log of the SIH 2026 finalist build. Newest status first. Evidence for eve
 | 6.4 "Why is this project stuck?" | Done: 9 bottleneck types across rules, GIS, objections, money, R&R and litigation; priority = risk × ₹ × families with every component explained; action briefs; audited accept/dispute feedback; LLM rephrase-only with fact check. `npm test` 109 passed; `npm run test:e2e` 40 passed | `feature/6.4-why-stuck` |
 | 6.5 owner reconciliation | Done: Devanagari/Gujarati/Kannada transliteration, Jaro-Winkler, Indian phonetic key, given-name and surname gates, father/village/shared-record signals, reasons per match, human queue with maker-checker for anything touching money, audited confirm/reject/unlink, release of held payment after confirmation. `npm test` 155 passed; `npm run test:e2e` 45 passed | `feature/6.5-owner-reconciliation` |
 | 6.6 digital thread & parcel graph | Done: server thread built from the audit chain across every linked record (with hashes), strand filters; layered project → notices → parcels → holders → cases/constraints graph; `docs/asyncapi.yaml` for all 8 event types. e2e thread 3 passed | `feature/6.6-digital-thread` |
-| 6.7 … 6.13 | Not started | — |
+| 6.7 tamper-evident audit → Merkle | Done: RFC 6962 roots per IST day (238 seeded), chained roots, hourly sealer plus seal-now, `/audit/verify` recomputes chain and roots, `/audit/entries/:seq/proof`, in-browser proof verification (WebCrypto, cross-checked 162/162), `npm run demo:tamper` / `demo:restore` | `feature/6.7-merkle` |
+| 6.8 … 6.13 | Not started | — |
 
 ## ⚠ Read first: OneDrive
 
@@ -159,6 +160,11 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
   mismatched given name or surname now scales the score down, and different fathers cap
   it at 0.75. Seeded candidates went from 22 to 3, with the Wankhede pair at 0.97.
 - **Co-holders on one land record are never candidates** (brothers share names).
+
+- **Merkle design.** RFC 6962 leaf/node domain separation; one root per IST day (the
+  current day seals on the next hourly run, or on demand); roots are chained so rewriting
+  history needs every later root rewritten. The browser re-verifies a proof itself rather
+  than trusting the server.
 
 ## Log
 

@@ -21,6 +21,7 @@ import { installPacks, RulesService } from '../../src/rules/rules.service';
 import { factsOf, parcelInclude } from '../../src/statutory/statutory.service';
 import { screenParcels } from '../../src/gis/gis-gate.service';
 import { runReconciliation } from '../../src/reconciliation/reconciliation.module';
+import { sealAudit } from '../../src/audit/merkle.service';
 import { LocalDiskStorage } from '../../src/storage/storage';
 import { makePdf } from './pdf';
 import { corridorRect, LngLat } from './geo';
@@ -193,6 +194,8 @@ export async function seedDemo(prisma: PrismaClient) {
   const written = await ctx.history.flush(prisma);
   const clocks = await seedClocks(prisma);
   const identity = await runReconciliation(prisma);
+  // Seal the historical audit trail into one Merkle root per IST day.
+  const merkle = await sealAudit(prisma, new Date());
   // Liability fact views read the tables just written.
   await prisma.$executeRawUnsafe('REFRESH MATERIALIZED VIEW mv_liability_s80');
   await prisma.$executeRawUnsafe('REFRESH MATERIALIZED VIEW mv_liability_additional');
@@ -208,6 +211,7 @@ export async function seedDemo(prisma: PrismaClient) {
     clocks,
     identityCandidates: identity.candidates,
     identityAutoLinked: identity.autoLinked,
+    merkleRoots: merkle.sealed,
   };
   return { mainProjectId: main.id, counts };
 }

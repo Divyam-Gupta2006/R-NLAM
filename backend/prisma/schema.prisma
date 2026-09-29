@@ -926,3 +926,26 @@ model PersonMatch {
   @@unique([personAId, personBId])
   @@index([status])
 }
+
+// ---------------------------------------------------------------------------
+// 6.7 Periodic Merkle roots over the audit chain.
+// ---------------------------------------------------------------------------
+
+/// Root of an RFC 6962 Merkle tree over audit entries fromSeq..toSeq (one IST
+/// day, or everything unsealed when sealed manually). Roots are themselves
+/// chained, so a rewritten root is detectable too.
+model MerkleRoot {
+  id          String   @id @default(uuid())
+  period      String // e.g. 2026-09-29, or "manual"
+  fromSeq     BigInt
+  toSeq       BigInt
+  leafCount   Int
+  root        String
+  prevChain   String
+  chainHash   String   @unique
+  periodStart DateTime
+  periodEnd   DateTime
+  sealedAt    DateTime @default(now())
+
+  @@index([fromSeq, toSeq])
+}
