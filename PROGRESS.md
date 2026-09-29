@@ -21,7 +21,8 @@ Living log of the SIH 2026 finalist build. Newest status first. Evidence for eve
 | 6.8 document & case AI | Done: field extraction (PDF text layer; Tesseract only if installed, else a clear 422) with confidence, evidence and `needs_review`; backend stores proposals, 503 if the AI service is down, audited confirm/correct/reject where flagged fields cannot be skipped; seeded award PDF reads back all 11 fields correctly. Legal Q&A over the Act text, schedules and rule packs, quoted with citations, refuses weak matches. **Accuracy: dev (tuned) top-1 10/12, top-3 12/12; hold-out (untuned) top-1 3/8, top-3 4/8; off-topic refused 4/4.** ai-service `pytest` 27 passed; backend `npm test` 170, `npm run test:e2e` 56 passed; frontend `tsc` clean. `next build` 124/124; UI compiled but not clicked through in a browser (memory rule) | `feature/6.8-document-ai` |
 | 6.9 candidate court-case links | Done: `EcourtsAdapter` interface + synthetic adapter (11 cases incl. deliberate near-misses); pure matcher (district gate; survey 0.45 / base 0.20; village ±0.20; party name via 6.5 × 0.35; candidate ≥ 0.50); 6 candidates seeded (5 true, 1 namesake trap), traps excluded; audited confirm/reject (reason required), idempotent re-sync keeps decisions; confirmed pending title suits and stay orders feed Why-Stuck with the CNR, s.64 references without a stay do not; case links in the digital thread; review page + parcel card. `npm test` 183, `npm run test:e2e` 61 passed; frontend `tsc` clean | `feature/6.9-court-links` |
 | 6.10 field app: offline GNSS evidence (PWA) | Done: device seals each bundle (SHA-256 over canonical JSON, WebCrypto) incl. photo hashes and position source; IndexedDB queue; sync on reconnect / every minute / Background Sync where supported; clear sync states (waiting, uploading, accepted, conflict, refused, will retry). Server re-verifies seal + photos (422 + audit on mismatch), idempotent on clientId, PostGIS distance / IoU, CONFLICT instead of overwrite, Collector resolves. Manifest + icons + service worker (scope /field/). Remembered field sessions open offline. **Browser-checked** (production build): offline session restore, simulated boundary walk, seal, queue, failed upload kept with reason, 401 kept the evidence, re-login uploaded it and the server re-verified the seal; Collector conflict screen. **Not verified:** service-worker registration (the app's embedded browser refuses it; script served 200). Device/server seal parity unit-tested. `npm test` 201, `npm run test:e2e` 66 passed; `next build` 129/129 | `feature/6.10-field-pwa` |
-| 6.11 … 6.13 | Not started | — |
+| 6.11 citizen digital twin & inclusion | Done: whole citizen portal (incl. sign-in) in English, Hindi and Marathi with a switcher (remembered; `<html lang>` set; Latin digits; IST dates in the chosen language); parcel on a map, stage in plain words, statutory dates, award lines, **s.80 interest owed** (same engine as the liability roll-up, e2e-checked to the paisa), R&R entitlements, hearings; s.15 objections plus **grievances** through a synthetic CPGRAMS adapter (officers' desk to reply, audited); **papers** with hash-checked download and issue to a synthetic DigiLocker; `TranslationProvider` (no-op default, Bhashini stub) behind `POST /i18n/translate`. A test checks every enum value the API returns has wording in all three languages. Browser-checked in Marathi and Hindi (home, complaints with the seeded Marathi grievance) and the Collector's grievance desk. `npm test` 208, `npm run test:e2e` 71 passed; `next build` 131/131 | `feature/6.11-citizen-i18n` |
+| 6.12 … 6.13 | Not started | — |
 
 ## ⚠ Read first: OneDrive
 
@@ -58,6 +59,8 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
    Sentence embeddings would help, but need a model download (~100–400 MB) and more RAM;
    say if you want it.
 6. **Service worker check in normal Chrome (6.10).** Build and run the frontend (`npm run build && npm start` in `frontend`), open `http://localhost:3000/field/assignments` in Chrome, and check DevTools → Application: the service worker `/field-sw.js` should be active for scope `/field/` and the app installable. In the Claude app's embedded browser, registration failed with "unknown error fetching the script" although the file is served correctly.
+7. **Hindi and Marathi wording (6.11).** I drafted every string in `frontend/lib/i18n/citizen.ts`; a native speaker should read them before any real use. A test guarantees completeness, not quality.
+8. **Bhashini, CPGRAMS, DigiLocker.** All three are behind interfaces with synthetic/no-op defaults. Real use needs: Bhashini ULCA credentials (`BHASHINI_USER_ID`, `BHASHINI_API_KEY`, `BHASHINI_PIPELINE_ID`), CPGRAMS onboarding with DARPG, DigiLocker issuer registration.
 5. **Browser walk-through of 6.8 and 6.9 screens.** They compile and their APIs are tested
    end to end, but I did not run backend + frontend together (one heavy process at a time).
 
@@ -220,6 +223,17 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
   minutes with 3.2 GB free, then stopped both. Found and fixed from that check: the
   simulated walk drifted between corners (IoU 44%; now holds at each corner, 1.241 ha vs
   1.243 ha recorded), a raw UTC time in the conflict message, and "Lar reference" labels.
+
+- **Citizen wording is hand-written, free text is shown as written.** The portal's own
+  words come from three dictionaries (English source; Hindi and Marathi must have the same
+  keys and placeholders, enforced by TypeScript and a test). Officers' replies and hearing
+  outcomes are shown as written with a note; machine translation of free text is only
+  through the `TranslationProvider`, which is a no-op until Bhashini is configured.
+- **Latin digits in all three languages.** Marathi's default numbering in browsers is
+  Devanagari; amounts would then look different from survey, phone and OTP numbers on the
+  same screen. Dates use the chosen language's month names.
+- **Grievances need a parcel.** Every complaint is tied to one of the citizen's parcels, so
+  it reaches the right Collector by the same jurisdiction rules as everything else.
 
 ## Log
 

@@ -428,7 +428,17 @@ export interface OutboxEvent {
   dispatchedAt: string | null;
 }
 
+/** s.80 interest owed on one compensation line (paid late, or unpaid after possession). */
+export interface CitizenInterest {
+  accruedPaise: Paise;
+  dailyPaise: Paise;
+  possessionOn: string;
+  paidOn: string | null;
+  ratesBp: [number, number];
+}
+
 export interface CitizenMe {
+  asOf: string;
   person: { name: string; fatherName: string | null; villageCode: string | null };
   holdings: Array<{
     sharePct: number;
@@ -438,10 +448,37 @@ export interface CitizenMe {
       village: { name: string; nameLocal: string | null };
       notices: Notice[];
       awards: Award[];
-      compensations: Compensation[];
+      compensations: Array<Compensation & { interest: CitizenInterest | null }>;
       objections: Objection[];
       possessions: Possession[];
     };
   }>;
   rrCases: RRCase[];
+}
+
+export interface Grievance {
+  id: string;
+  registrationNo: string;
+  channel: string;
+  parcelId: string;
+  category: string;
+  description: string;
+  language: string;
+  status: 'RECEIVED' | 'UNDER_REVIEW' | 'RESOLVED';
+  reply: string | null;
+  repliedAt: string | null;
+  createdAt: string;
+}
+
+export interface CitizenDocument {
+  id: string;
+  kind: string;
+  title: string;
+  referenceNo: string | null;
+  issuedOn: string | null;
+  sha256: string;
+  sizeBytes: number;
+  isSynthetic: boolean;
+  parcel: { parcelNumber: string; surveyNumber: string; villageName: string };
+  digilocker: { id: string; uri: string; channel: string; issuedAt: string } | null;
 }
