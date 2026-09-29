@@ -187,6 +187,9 @@ export async function seedDemo(prisma: PrismaClient) {
   await seedCitizenLogins(ctx);
   const written = await ctx.history.flush(prisma);
   const clocks = await seedClocks(prisma);
+  // Liability fact views read the tables just written.
+  await prisma.$executeRawUnsafe('REFRESH MATERIALIZED VIEW mv_liability_s80');
+  await prisma.$executeRawUnsafe('REFRESH MATERIALIZED VIEW mv_liability_additional');
 
   const counts = {
     projects: await prisma.project.count(),
@@ -762,6 +765,7 @@ async function seedMainProject(ctx: Ctx) {
     }
   }
 
+  requiredArea += await seedUrgencyParcels(ctx, project.id, perParcelKm, { sia: { id: wardhaSia.id, date: DATES.wardhaSia }, sec11: { id: wardhaSec11.id, date: DATES.wardhaSec11 } });
   await prisma.project.update({ where: { id: project.id }, data: { requiredAreaHa: Math.round(requiredArea * 100) / 100 } });
 
   // The Latin-script record of the name-mismatch owner, created by the award register.
@@ -920,4 +924,102 @@ async function seedClocks(prisma: PrismaClient) {
     }
   }
   return n;
+}
+
+/**
+ * s.40 urgency: four parcels for the Wardha river-bridge approach were taken
+ * on 20 Aug 2025 under an urgency direction, before their award. The award came
+ * later; the first holder of each was paid, the co-holders were not, so s.80
+ * interest has run on their shares since possession (15% after one year).
+ */
+async function seedUrgencyParcels(ctx: Ctx, projectId: string, perParcelKm: number, base: NoticeSet): Promise<number> {
+  const { prisma, rng, history } = ctx;
+  const col = actor(ctx.users.collectorWardha);
+  const fin = actor(ctx.users.finance);
+  const declaredOn = parseIstDate('2025-07-15');
+  const possessionOn = parseIstDate('2025-08-20');
+  const awardOn = parseIstDate('2025-12-10');
+  const firstPaidOn = parseIstDate('2026-01-05');
+  const orderRef = 'GoM RFD urgency direction LAQ-2025/URG/07 (synthetic)';
+
+  const sec19 = await prisma.statutoryNotice.create({
+    data: { projectId, kind: NoticeKind.SEC_19_DECLARATION, referenceNo: 'LAQ/WRD/19/2025/URG', gazetteRef: 's.19 declaration under s.40(4) direction (synthetic ref)', publishedOn: declaredOn },
+  });
+  history.audit({ action: 'NOTICE_PUBLISHED_SEC_19_DECLARATION', entityType: 'StatutoryNotice', entityId: sec19.id, at: declaredOn, actor: col, newState: { referenceNo: sec19.referenceNo, urgency: true } });
+
+  let area = 0;
+  const villageStart = 0.4 + 24 * perParcelKm; // Borgaon stretch
+  for (let i = 0; i < 4; i++) {
+    const start = villageStart + i * perParcelKm + 0.42; // in the gaps between regular parcels
+    const { geometry, areaHa } = corridorRect(WARDHA, YAVATMAL, start, start + rng.float(0.15, 0.25), 0.03, 0.03);
+    area += areaHa;
+    const holders: Array<{ personId: string; name: string; share: number }> = [];
+    for (const share of [60, 40]) {
+      const person = await makePerson(ctx, 'MH-WRD-BRG');
+      holders.push({ personId: person.id, name: person.name, share });
+    }
+    const built = await buildParcel(ctx, {
+      projectId,
+      parcelNumber: `WRD-BRG-${101 + i}`,
+      surveyNumber: `${rng.int(300, 380)}/${rng.int(1, 4)}`,
+      village: { code: 'MH-WRD-BRG', name: 'Borgaon' },
+      district: { code: 'MH-WRD', name: 'Wardha' },
+      state: { code: 'MH', name: 'Maharashtra' },
+      geometry,
+      areaHa,
+      ratePerHa: rng.int(110, 150) * 10_000,
+      distanceKm: rng.int(8, 14),
+      landClass: 'Agricultural (irrigated), river bank',
+      notices: { ...base, sec19: { id: sec19.id, date: declaredOn } },
+      plan: { target: 'DECLARED', displaced: false, families: 2 },
+      collector: ctx.users.collectorWardha,
+      holders,
+      ulpin: `27${String(rng.int(100000000000, 999999999999))}`,
+    });
+    const parcel = await prisma.parcel.update({ where: { id: built.id }, data: { urgencyOrderRef: orderRef } });
+
+    // Possession first (s.40), then the award.
+    const pos = await prisma.possession.create({ data: { projectId, parcelId: parcel.id, status: 'POSSESSION_TAKEN', takenOn: possessionOn, authority: 'Collector, Wardha (s.40)' } });
+    history.transition({ entityType: 'Parcel', entityId: parcel.id, event: 'TAKE_POSSESSION_URGENCY', from: 'DECLARED', to: 'POSSESSION_TAKEN', at: possessionOn, actor: col, context: { urgencyOrderRef: orderRef } });
+    history.transition({ entityType: 'Possession', entityId: pos.id, event: 'TAKE', from: 'ELIGIBLE', to: 'POSSESSION_TAKEN', at: possessionOn, actor: col });
+
+    const { rules, packCode, packs, unverified } = await ctx.rules.awardRules({ stateCode: 'MH', isRural: true, distanceFromUrbanKm: parcel.distanceFromUrbanKm }, awardOn);
+    // s.30(3): the additional amount stops at possession, which came before the award.
+    const b = calculateAward({ areaHa, marketRatePaisePerHa: parcel.marketRatePaisePerHa!, assetsValuePaise: 0n, additionalFrom: base.sia!.date, cutoffDate: possessionOn }, rules);
+    const seq = (ctx.counters.award['MH-WRD'] = (ctx.counters.award['MH-WRD'] ?? 0) + 1);
+    const award = await prisma.award.create({
+      data: {
+        awardNumber: `AWD/MH-WRD/2025/${String(seq).padStart(4, '0')}`,
+        projectId,
+        parcelId: parcel.id,
+        awardDate: awardOn,
+        marketValuePaise: b.marketValuePaise,
+        multiplier: new Prisma.Decimal(b.multiplier),
+        assetsValuePaise: 0n,
+        solatiumPaise: b.solatiumPaise,
+        additionalAmountPaise: b.additionalAmountPaise,
+        totalPaise: b.totalPaise,
+        calculation: JSON.parse(JSON.stringify({ ...b, packCode, packs, unverified, additionalFrom: base.sia!.date, additionalFromEvent: 'SEC_4_SIA', cutoff: 'possession (s.30(3), earlier than award)' }, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))),
+      },
+    });
+    history.audit({ action: 'AWARD_DECLARED_AFTER_URGENCY_POSSESSION', entityType: 'Award', entityId: award.id, at: awardOn, actor: col, newState: { awardNumber: award.awardNumber, totalPaise: award.totalPaise } });
+    const shares = splitByShare(b.totalPaise, holders.map((h) => ({ ...h, sharePct: h.share })));
+    for (const [j, sh] of shares.entries()) {
+      const c = await prisma.compensation.create({
+        data: { projectId, parcelId: parcel.id, awardId: award.id, personId: sh.personId, beneficiaryName: sh.name, sharePct: sh.share, amountPaise: sh.amountPaise, bankAccountLast4: String(rng.int(1000, 9999)), createdAt: awardOn },
+      });
+      history.transition({ entityType: 'Compensation', entityId: c.id, event: 'APPROVE', from: 'ASSESSED', to: 'APPROVED', at: addDays(awardOn, 10), actor: col });
+      if (j === 0) {
+        const utr = `SYN${rng.int(100000000, 999999999)}U`;
+        await prisma.paymentReference.create({ data: { compensationId: c.id, utrNumber: utr, amountPaise: c.amountPaise, transactedAt: firstPaidOn } });
+        history.transition({ entityType: 'Compensation', entityId: c.id, event: 'INITIATE_PAYMENT', from: 'APPROVED', to: 'INITIATED', at: firstPaidOn, actor: fin });
+        history.transition({ entityType: 'Compensation', entityId: c.id, event: 'CONFIRM_PAID', from: 'INITIATED', to: 'PAID', at: firstPaidOn, actor: fin, context: { utrNumber: utr } });
+        await prisma.compensation.update({ where: { id: c.id }, data: { status: 'PAID', paidOn: firstPaidOn } });
+      } else {
+        await prisma.compensation.update({ where: { id: c.id }, data: { status: 'APPROVED' } });
+      }
+    }
+    await prisma.parcel.update({ where: { id: parcel.id }, data: { stage: 'POSSESSION_TAKEN', acquiredAreaHa: areaHa } });
+  }
+  return area;
 }

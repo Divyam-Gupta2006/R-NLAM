@@ -34,6 +34,7 @@ export const PORTALS: Portal[] = [
           { label: 'Districts', href: '/central/districts', icon: 'MapPin' },
           { label: 'Delay risk', href: '/central/risk', icon: 'AlertTriangle' },
           { label: 'Statutory calendar', href: '/central/statutory', icon: 'Calendar' },
+          { label: 'Interest liability', href: '/central/liability', icon: 'IndianRupee' },
         ],
       },
       {
@@ -79,6 +80,7 @@ export const PORTALS: Portal[] = [
         title: 'Lifecycle',
         items: [
           { label: 'Statutory calendar', href: '/state/statutory', icon: 'Calendar' },
+          { label: 'Interest liability', href: '/state/liability', icon: 'IndianRupee' },
           { label: 'SLA tracker', href: '/state/sla', icon: 'Clock' },
           { label: 'Land & parcels', href: '/state/land', icon: 'Layers' },
           { label: 'GIS map', href: '/state/gis', icon: 'Map' },
@@ -101,6 +103,7 @@ export const PORTALS: Portal[] = [
         items: [
           { label: 'Work queue', href: '/district/work-queue', icon: 'Inbox' },
           { label: 'Statutory calendar', href: '/district/statutory', icon: 'Calendar' },
+          { label: 'Interest liability', href: '/district/liability', icon: 'IndianRupee' },
           { label: 'SLA tracker', href: '/district/sla', icon: 'Clock' },
         ],
       },

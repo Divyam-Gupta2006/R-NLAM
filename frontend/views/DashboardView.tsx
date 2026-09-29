@@ -9,6 +9,7 @@ import { Card, DataState, PageHeader, Progress, Stat, SyntheticTag, Table } from
 import { useApi } from '@/lib/api/hooks';
 import type { Breakdown, Kpis, Project } from '@/lib/api/types';
 import { ha, humanize, inrShort, num, pct } from '@/lib/format';
+import { LiabilitySummary, LiveCounter } from './LiabilityView';
 
 export function KpiRow({ k }: { k: Kpis }) {
   return (
@@ -86,10 +87,16 @@ export function DashboardView({ title, eyebrow, breakdown }: { title: string; ey
   const kpis = useApi<Kpis>('/analytics/kpis');
   const rows = useApi<Breakdown[]>(breakdown === 'state' ? '/analytics/states' : '/analytics/districts');
   const projects = useApi<Project[]>('/projects');
+  const liability = useApi<LiabilitySummary>('/liability/summary', { refreshMs: 60_000 });
 
   return (
     <div className="space-y-5">
       <PageHeader eyebrow={eyebrow} title={title} subtitle="Live from the lifecycle database. Every number drills down to parcels." />
+      {liability.data && (
+        <Link href={`${breakdown === 'state' ? '/central' : '/state'}/liability`} className="block rounded-[var(--radius)] focus-visible:outline">
+          <LiveCounter summary={liability.data} />
+        </Link>
+      )}
       <DataState state={kpis} rows={2}>
         {(k) => (
           <>
