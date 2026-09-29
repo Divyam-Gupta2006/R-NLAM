@@ -1,274 +1,110 @@
-// Centralized Domain API Client for R-NLAM Frontend -> NestJS Backend (Port 4000)
+/**
+ * The one HTTP client for the R-NLAM API. Sends the session's Bearer token,
+ * turns error responses into ApiError (with lifecycle `blockers` when a guard
+ * refused a transition), and signals the session on 401.
+ */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-const AI_BASE_URL = process.env.NEXT_PUBLIC_AI_URL || 'http://localhost:8000/api/v1';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+export const AI_BASE_URL = process.env.NEXT_PUBLIC_AI_URL || 'http://localhost:8000/api/v1';
 
-export interface ApiResponse<T = any> {
-  data: T | null;
-  error: string | null;
-  status: number;
+const TOKEN_KEY = 'rnlam.session.token';
+
+export interface Blocker {
+  code: string;
+  message: string;
+  citation?: string;
+  overridable: boolean;
+  unblockedBy?: string[];
+  evidence?: Record<string, unknown>;
 }
 
-class ApiClient {
-  private getAuthHeader(): Record<string, string> {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('rnlam_jwt_token') || sessionStorage.getItem('rnlam_jwt_token');
-      const role = localStorage.getItem('rnlam_active_role') || 'CENTRAL_ADMIN';
-      return {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        'X-User-Role': role,
-      };
-    }
-    return { 'X-User-Role': 'CENTRAL_ADMIN' };
-  }
-
-  public async get<T = any>(endpoint: string): Promise<ApiResponse<T>> {
-    try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...this.getAuthHeader(),
-        },
-      });
-
-      if (!response.ok) {
-        return { data: null, error: `HTTP ${response.status}: ${response.statusText}`, status: response.status };
-      }
-
-      const data = await response.json();
-      return { data, error: null, status: response.status };
-    } catch (err: any) {
-      return { data: null, error: err.message || 'Network Error', status: 500 };
-    }
-  }
-
-  public async post<T = any>(endpoint: string, payload: any): Promise<ApiResponse<T>> {
-    try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...this.getAuthHeader(),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        return { data: null, error: `HTTP ${response.status}: ${response.statusText}`, status: response.status };
-      }
-
-      const data = await response.json();
-      return { data, error: null, status: response.status };
-    } catch (err: any) {
-      return { data: null, error: err.message || 'Network Error', status: 500 };
-    }
-  }
-
-  public async patch<T = any>(endpoint: string, payload: any): Promise<ApiResponse<T>> {
-    try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...this.getAuthHeader(),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        return { data: null, error: `HTTP ${response.status}: ${response.statusText}`, status: response.status };
-      }
-
-      const data = await response.json();
-      return { data, error: null, status: response.status };
-    } catch (err: any) {
-      return { data: null, error: err.message || 'Network Error', status: 500 };
-    }
-  }
-
-  // AI Microservice API Calls
-  public async callAi<T = any>(endpoint: string, payload: any): Promise<ApiResponse<T>> {
-    try {
-      const response = await fetch(`${AI_BASE_URL}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        return { data: null, error: `AI HTTP ${response.status}: ${response.statusText}`, status: response.status };
-      }
-
-      const data = await response.json();
-      return { data, error: null, status: response.status };
-    } catch (err: any) {
-      return { data: null, error: err.message || 'AI Microservice Network Error', status: 500 };
-    }
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly code?: string,
+    public readonly blockers: Blocker[] = [],
+    public readonly details?: unknown,
+  ) {
+    super(message);
   }
 }
 
-export const apiClient = new ApiClient();
-
-// Typed Domain Resource API Modules
-
-export const projectsApi = {
-  getAll: (params?: { stateCode?: string; districtCode?: string }) => {
-    const query = new URLSearchParams(params as any).toString();
-    return apiClient.get(`/projects${query ? `?${query}` : ''}`);
+export const tokenStore = {
+  get(): string | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      return window.sessionStorage.getItem(TOKEN_KEY);
+    } catch {
+      return null;
+    }
   },
-  getById: (id: string) => apiClient.get(`/projects/${id}`),
-  create: (data: {
-    code: string;
-    name: string;
-    sector: string;
-    stateCode: string;
-    stateName: string;
-    districtCodes: string[];
-    districtNames: string[];
-    piaName: string;
-    requiredLand: number;
-    estimatedCost: number;
-  }) => apiClient.post('/projects', data),
-};
-
-export const proposalsApi = {
-  getAll: () => apiClient.get('/proposals'),
-  updateStatus: (id: string, status: string, remarks?: string) =>
-    apiClient.patch(`/proposals/${id}/status`, { status, remarks }),
-};
-
-export const workflowApi = {
-  getTemplates: () => apiClient.get('/workflow/templates'),
-  getInstanceByProjectId: (projectId: string) => apiClient.get(`/workflow/instance/${projectId}`),
-  executeAction: (data: {
-    instanceId: string;
-    actionName: string;
-    performedBy: string;
-    fromStage: string;
-    toStage: string;
-    remarks?: string;
-  }) => apiClient.post('/workflow/action', data),
-};
-
-export const parcelsApi = {
-  getAll: (params?: { projectId?: string; villageName?: string }) => {
-    const query = new URLSearchParams(params as any).toString();
-    return apiClient.get(`/parcels${query ? `?${query}` : ''}`);
+  set(token: string | null) {
+    if (typeof window === 'undefined') return;
+    try {
+      if (token) window.sessionStorage.setItem(TOKEN_KEY, token);
+      else window.sessionStorage.removeItem(TOKEN_KEY);
+    } catch {
+      /* private mode: session lives in memory only */
+    }
   },
-  getById: (id: string) => apiClient.get(`/parcels/${id}`),
-  verify: (data: {
-    parcelId: string;
-    verifiedBy: string;
-    latitude: number;
-    longitude: number;
-    photoUrl?: string;
-    notes?: string;
-    status?: string;
-  }) => apiClient.post('/parcels/verify', data),
 };
 
-export const gisApi = {
-  getGeoJson: (projectId?: string) => apiClient.get(`/gis/geojson${projectId ? `?projectId=${projectId}` : ''}`),
-  getSpatialStats: (projectId?: string) => apiClient.get(`/gis/stats${projectId ? `?projectId=${projectId}` : ''}`),
+type Json = Record<string, unknown> | unknown[];
+
+async function request<T>(method: string, path: string, body?: Json | FormData, base = API_BASE_URL): Promise<T> {
+  const token = tokenStore.get();
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (body && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
+
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, {
+      method,
+      headers,
+      body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new ApiError(0, 'Cannot reach the R-NLAM server. Is the backend running on port 4000?', 'NETWORK');
+  }
+
+  if (res.status === 401 && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('rnlam:unauthorized'));
+  }
+  const text = await res.text();
+  const data = text ? safeJson(text) : null;
+  if (!res.ok) {
+    const d = (data ?? {}) as { message?: string | string[]; error?: string; blockers?: Blocker[] };
+    const message = Array.isArray(d.message) ? d.message.join('; ') : d.message || res.statusText || `HTTP ${res.status}`;
+    throw new ApiError(res.status, message, d.error, d.blockers ?? [], data);
+  }
+  return data as T;
+}
+
+function safeJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+export const api = {
+  get: <T>(path: string) => request<T>('GET', path),
+  post: <T>(path: string, body?: Json) => request<T>('POST', path, body ?? {}),
+  patch: <T>(path: string, body?: Json) => request<T>('PATCH', path, body ?? {}),
+  upload: <T>(path: string, form: FormData) => request<T>('POST', path, form),
+  ai: {
+    get: <T>(path: string) => request<T>('GET', path, undefined, AI_BASE_URL),
+    post: <T>(path: string, body: Json) => request<T>('POST', path, body, AI_BASE_URL),
+  },
 };
 
-export const analyticsApi = {
-  getKpis: () => apiClient.get('/analytics/kpis'),
-  getProjectAnalytics: (id: string) => apiClient.get(`/analytics/project/${id}`),
-  getStates: () => apiClient.get('/analytics/states'),
-  getDistricts: (stateCode?: string) => apiClient.get(`/analytics/districts${stateCode ? `?stateCode=${stateCode}` : ''}`),
-};
-
-export const compensationApi = {
-  getCases: (projectId?: string) =>
-    apiClient.get(`/compensation/cases${projectId ? `?projectId=${projectId}` : ''}`),
-  initiatePayment: (data: { caseId: string; bankAccount: string; ifscCode: string; amount: number }) =>
-    apiClient.post('/compensation/initiate-payment', data),
-};
-
-export const rrApi = {
-  getFamilies: () => apiClient.get('/rr/families'),
-  getCases: (projectId?: string) => apiClient.get(`/rr/cases${projectId ? `?projectId=${projectId}` : ''}`),
-  deliverBenefit: (data: { caseId: string; benefitName: string; remarks?: string }) =>
-    apiClient.post('/rr/delivery', data),
-};
-
-export const possessionApi = {
-  getCases: (projectId?: string) => apiClient.get(`/possession/cases${projectId ? `?projectId=${projectId}` : ''}`),
-  record: (data: {
-    projectId: string;
-    parcelId: string;
-    authority: string;
-    latitude: number;
-    longitude: number;
-    remarks?: string;
-  }) => apiClient.post('/possession/record', data),
-};
-
-export const auditApi = {
-  getEvents: () => apiClient.get('/audit'),
-  verifyChain: () => apiClient.get('/audit/verify-chain'),
-};
-
-export const notificationsApi = {
-  getAll: () => apiClient.get('/notifications'),
-  markRead: (id: string) => apiClient.patch(`/notifications/${id}/read`, {}),
-};
-
-export const usersApi = {
-  getAll: () => apiClient.get('/users'),
-  getById: (id: string) => apiClient.get(`/users/${id}`),
-  create: (data: any) => apiClient.post('/users', data),
-};
-
-export const integrationsApi = {
-  getStatus: () => apiClient.get('/integrations/status'),
-  fetchBhoomi: (khasra: string) => apiClient.get(`/integrations/bhoomi/${khasra}`),
-  processPFMS: (data: any) => apiClient.post('/integrations/pfms', data),
-};
-
-export const citizenApi = {
-  getSummary: () => apiClient.get('/citizen/summary'),
-  getProjects: () => apiClient.get('/citizen/projects'),
-  getMyLand: (khasra?: string) => apiClient.get(`/citizen/my-land${khasra ? `?khasra=${khasra}` : ''}`),
-  getMyCompensation: () => apiClient.get('/citizen/compensation'),
-  getMyRR: () => apiClient.get('/citizen/rr'),
-  submitGrievance: (data: any) => apiClient.post('/citizen/grievance', data),
-};
-
-export const slaApi = {
-  getTasks: () => apiClient.get('/sla/tasks'),
-  checkBreaches: () => apiClient.post('/sla/check-breaches', {}),
-};
-
-export const objectionsApi = {
-  getAll: () => apiClient.get('/objections'),
-  create: (data: any) => apiClient.post('/objections', data),
-  updateStatus: (id: string, status: string) => apiClient.patch(`/objections/${id}/status`, { status }),
-};
-
-export const hearingsApi = {
-  getAll: () => apiClient.get('/hearings'),
-  create: (data: any) => apiClient.post('/hearings', data),
-  updateDecision: (id: string, decision: string) => apiClient.patch(`/hearings/${id}/decision`, { decision }),
-};
-
-export const awardsApi = {
-  getAll: () => apiClient.get('/awards'),
-  create: (data: any) => apiClient.post('/awards', data),
-};
-
-export const documentsApi = {
-  getAll: (projectId?: string) => apiClient.get(`/documents${projectId ? `?projectId=${projectId}` : ''}`),
-  upload: (fileData: any) => apiClient.post('/documents/upload', fileData),
-};
-
-export const aiApi = {
-  extractOcr: (fileBase64: string) => apiClient.callAi('/ocr/extract-document', { file_base64: fileBase64 }),
-  assessRisk: (payload: any) => apiClient.callAi('/risk/assess-delay', payload),
-  nlpQuery: (queryText: string, userRole: string = 'CENTRAL_ADMIN') =>
-    apiClient.callAi('/analytics/nlp-query', { query_text: queryText, user_role: userRole }),
-};
+/** Build a query string, dropping empty values. */
+export function qs(params: Record<string, string | number | boolean | null | undefined>): string {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== '') p.set(k, String(v));
+  const s = p.toString();
+  return s ? `?${s}` : '';
+}

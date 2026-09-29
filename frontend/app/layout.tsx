@@ -1,33 +1,27 @@
 import './globals.css';
+import type { Metadata, Viewport } from 'next';
 import React from 'react';
-import type { Metadata } from 'next';
+import { AppShell } from '@/components/shell/AppShell';
 import { Providers } from './providers';
-import { Header } from '@/components/Header';
-import { Sidebar } from '@/components/Sidebar';
-import { AuditTimelineDrawer } from '@/components/AuditTimelineDrawer';
 
 export const metadata: Metadata = {
-  title: 'R-NLAM | Real-Time National Land Acquisition System',
-  description: 'National digital orchestration, spatial intelligence, and 5D land acquisition management portal.',
+  title: 'R-NLAM · National Land Acquisition & Management',
+  description: 'Real-Time National Land Acquisition & Management System: track the land, the case, the money, the people and the time.',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export const viewport: Viewport = {
+  themeColor: '#0b1f3a',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-slate-100 text-slate-900 min-h-screen flex flex-col antialiased">
+      <body>
+        <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[2000] focus:rounded focus:bg-panel focus:px-3 focus:py-2">
+          Skip to content
+        </a>
         <Providers>
-          <Header />
-          <div className="flex flex-1 overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-100">
-              {children}
-            </main>
-          </div>
-          <AuditTimelineDrawer />
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>

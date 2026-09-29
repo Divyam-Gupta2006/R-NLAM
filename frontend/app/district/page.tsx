@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function DistrictPage() {
+export default function Page() {
   redirect('/district/work-queue');
 }

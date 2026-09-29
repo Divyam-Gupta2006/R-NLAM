@@ -2,32 +2,106 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * R-NLAM design tokens: the single source for colour, radius and type.
+ * Tailwind maps its theme onto these variables (tailwind.config.js), so a
+ * component never hardcodes a hex value. Saffron and green are accents used
+ * sparingly (status, highlights, the tricolour rule), on a calm navy/slate base.
+ */
+:root {
+  --ink: 15 23 42; /* slate-900 */
+  --ink-muted: 71 85 105; /* slate-600 */
+  --surface: 244 246 250;
+  --panel: 255 255 255;
+  --line: 226 232 240;
+
+  --navy: 11 31 58;
+  --navy-soft: 22 50 92;
+  --saffron: 232 119 34;
+  --saffron-soft: 255 237 213;
+  --green: 19 136 8;
+  --green-soft: 220 252 231;
+  --danger: 190 18 60;
+  --danger-soft: 255 228 230;
+  --warning: 180 83 9;
+  --warning-soft: 254 243 199;
+  --info: 3 105 161;
+  --info-soft: 224 242 254;
+
+  --radius: 0.75rem;
+  --focus: 232 119 34;
+}
+
 @layer base {
+  html {
+    font-family: Inter, 'Segoe UI', system-ui, -apple-system, 'Noto Sans Devanagari', 'Nirmala UI', sans-serif;
+  }
   body {
-    @apply bg-slate-100 text-slate-900 font-sans antialiased selection:bg-sky-500 selection:text-white;
+    @apply bg-surface text-ink antialiased;
+  }
+  :focus-visible {
+    outline: 3px solid rgb(var(--focus) / 0.9);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  /* Tabular numbers everywhere money or counts line up. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 }
 
-/* Custom Scrollbar styling for enterprise table and sidebar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.4);
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.7);
+@layer components {
+  .panel {
+    @apply bg-panel border border-line rounded-[var(--radius)] shadow-[0_1px_2px_rgb(15_23_42/0.04)];
+  }
+  .tricolour-rule {
+    background: linear-gradient(90deg, rgb(var(--saffron)) 0 33.3%, #ffffff 33.3% 66.6%, rgb(var(--green)) 66.6% 100%);
+    height: 3px;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-navy text-white hover:bg-navy-soft;
+  }
+  .btn-accent {
+    @apply btn bg-saffron text-white hover:brightness-95;
+  }
+  .btn-ghost {
+    @apply btn border border-line bg-panel text-ink hover:bg-surface;
+  }
+  .btn-danger {
+    @apply btn bg-danger text-white hover:brightness-95;
+  }
+  .input {
+    @apply w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink placeholder:text-ink-muted/70 focus:border-saffron focus:outline-none focus:ring-2 focus:ring-saffron/30;
+  }
+  .label {
+    @apply block text-xs font-semibold text-ink-muted mb-1;
+  }
 }
 
-/* Leaflet map fix z-indices */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(148 163 184 / 0.45);
+  border-radius: 9999px;
+}
+
 .leaflet-container {
   width: 100%;
   height: 100%;
   font-family: inherit;
-  border-radius: 0.75rem;
+  border-radius: var(--radius);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

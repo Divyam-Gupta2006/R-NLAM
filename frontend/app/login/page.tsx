@@ -1,116 +1,118 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { ShieldCheck, ArrowRight, Lock, KeyRound, AlertTriangle } from 'lucide-react';
-import { useRole } from '@/context/RoleContext';
-import { USER_ROLES, UserRole } from '@/lib/mockData';
+import { ArrowRight, FlaskConical, Landmark, ShieldCheck, Smartphone } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { ErrorState, LoadingBlock, Spinner } from '@/components/ui';
+import { homeFor, useSession } from '@/context/SessionContext';
+import { ApiError } from '@/lib/api/client';
+import { useApi } from '@/lib/api/hooks';
+import type { Persona } from '@/lib/api/types';
+import { humanize } from '@/lib/format';
+
+const GROUPS: Array<{ title: string; roles: string[] }> = [
+  { title: 'National', roles: ['CENTRAL_ADMIN', 'CENTRAL_OFFICER'] },
+  { title: 'State', roles: ['STATE_ADMIN', 'STATE_OFFICER', 'FINANCE_OFFICER', 'GIS_OFFICER'] },
+  { title: 'District & field', roles: ['DISTRICT_OFFICER', 'FIELD_OFFICER', 'RR_OFFICER'] },
+  { title: 'Requiring body', roles: ['PIA_OFFICER'] },
+];
 
 export default function LoginPage() {
-  const { switchRole } = useRole();
-  const [selectedRole, setSelectedRole] = useState<UserRole>('CENTRAL_ADMIN');
-  const [email, setEmail] = useState('officer@r-nlam.gov.in');
-  const isDevMode = process.env.NODE_ENV !== 'production';
+  const { user, loginAs } = useSession();
+  const router = useRouter();
+  const mode = useApi<{ mode: 'dev' | 'keycloak' }>('/auth/mode');
+  const personas = useApi<Persona[]>(mode.data?.mode === 'dev' ? '/auth/personas' : null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
 
   useEffect(() => {
-    if (!isDevMode) {
-      // In production mode, automatically redirect to Keycloak OIDC Authorization endpoint
-      window.location.href = 'http://localhost:8085/realms/master/protocol/openid-connect/auth?client_id=admin-cli&response_type=code&redirect_uri=http://localhost:3000/login';
+    if (user) router.replace(homeFor(user.role));
+  }, [user, router]);
+
+  const signIn = async (email: string) => {
+    setBusy(email);
+    setError(null);
+    try {
+      await loginAs(email);
+    } catch (e) {
+      setError(e as ApiError);
+      setBusy(null);
     }
-  }, [isDevMode]);
-
-  const handleDevLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    switchRole(selectedRole);
-  };
-
-  const handleKeycloakLogin = () => {
-    window.location.href = 'http://localhost:8085/realms/master/protocol/openid-connect/auth?client_id=admin-cli&response_type=code&redirect_uri=http://localhost:3000/login';
   };
 
   return (
-    <div className="max-w-md mx-auto my-12 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-      <div className="bg-slate-900 text-white p-6 text-center">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-sky-500 to-emerald-400 p-0.5 mx-auto mb-3 flex items-center justify-center">
-          <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center">
-            <Lock className="w-6 h-6 text-sky-400" />
+    <div className="min-h-screen bg-surface">
+      <div className="tricolour-rule" aria-hidden />
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 lg:grid-cols-[1fr_1.3fr]">
+        <section className="flex flex-col justify-center">
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 place-items-center rounded-xl bg-navy text-xl font-black text-white">R</span>
+            <div>
+              <h1 className="text-2xl font-extrabold text-ink">R-NLAM</h1>
+              <p className="text-sm text-ink-muted">Real-Time National Land Acquisition &amp; Management System</p>
+            </div>
           </div>
-        </div>
-        <h2 className="text-xl font-bold">R-NLAM Single Sign-On</h2>
-        <p className="text-xs text-slate-400 mt-1">
-          Government Keycloak OAuth2 / OIDC RS256 Authentication Portal
-        </p>
-
-        {isDevMode && (
-          <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-bold rounded-full">
-            <AlertTriangle className="w-3.5 h-3.5" /> DEV PERSONA MODE ACTIVE
-          </div>
-        )}
-      </div>
-
-      <div className="p-6 space-y-5 text-xs">
-        {/* Keycloak Primary OIDC Auth Button */}
-        <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl space-y-3">
-          <div className="flex items-center gap-2 text-indigo-900 font-bold text-sm">
-            <KeyRound className="w-4 h-4 text-indigo-600" /> Production Keycloak OIDC Authentication
-          </div>
-          <p className="text-slate-600 text-xs">
-            Authenticates via Keycloak RS256 token signature, issuer, audience, and expiry verification.
+          <p className="mt-6 text-3xl font-bold leading-tight text-navy">Connecting Land, Law &amp; People.</p>
+          <p className="mt-3 max-w-md text-sm text-ink-muted">
+            One statutory state machine from preliminary notification to possession: every parcel, rupee, family and deadline, with a tamper-evident record of who did what and why.
           </p>
-          <button
-            onClick={handleKeycloakLogin}
-            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition flex items-center justify-center gap-2"
-          >
-            <span>Authenticate via Keycloak SS0 (Port 8085)</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
+          <ul className="mt-6 space-y-2 text-sm text-ink">
+            <li className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-bharat" /> Guards cite the section of RFCTLARR 2013 they enforce
+            </li>
+            <li className="flex items-center gap-2">
+              <Landmark className="h-4 w-4 text-saffron" /> Money in paise, dates in IST, audit chained with SHA-256
+            </li>
+          </ul>
+          <Link href="/citizen/login" className="mt-8 inline-flex w-fit items-center gap-2 rounded-lg border border-line bg-panel px-4 py-3 text-sm font-semibold text-ink hover:border-saffron">
+            <Smartphone className="h-4 w-4 text-saffron" /> I am a land holder: citizen login <ArrowRight className="h-4 w-4" />
+          </Link>
+          <p className="mt-6 text-xs text-ink-muted">Smart India Hackathon 2026 · PS 26016 · Team GAP BRIDGERS</p>
+        </section>
 
-        {/* Development Persona Swapper Form */}
-        {isDevMode && (
-          <form onSubmit={handleDevLogin} className="pt-2 border-t border-slate-200 space-y-4">
-            <div className="text-slate-500 font-bold uppercase text-[10px]">
-              Development Local Persona Switcher
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Select Official Role Persona</label>
-              <select
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg font-medium text-slate-900 focus:ring-2 focus:ring-slate-900 focus:outline-none"
-              >
-                {USER_ROLES.map((role) => (
-                  <option key={role.id} value={role.id}>
-                    {role.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Dev Email ID</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-slate-900 focus:outline-none"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-lg text-xs transition flex items-center justify-center gap-2"
-            >
-              <span>Enter in Dev Persona Mode</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-        )}
-
-        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-[11px] flex items-center space-x-2">
-          <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600" />
-          <span>Multi-factor authentication & RS256 token verification enabled.</span>
-        </div>
+        <section className="panel p-5">
+          <h2 className="text-lg font-bold text-ink">Officer sign-in</h2>
+          {mode.loading && !mode.data && <LoadingBlock rows={3} />}
+          {mode.error && <ErrorState error={mode.error} onRetry={mode.reload} />}
+          {mode.data?.mode === 'keycloak' && <p className="mt-2 text-sm text-ink-muted">This server uses single sign-on (Keycloak). Sign in through your department identity provider.</p>}
+          {mode.data?.mode === 'dev' && (
+            <>
+              <p className="mt-1 flex items-start gap-1.5 text-xs text-warning">
+                <FlaskConical className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Dev mode: pick a demo persona. The server issues a signed token with that officer’s role and jurisdiction. There are no passwords because every account is fictional.
+              </p>
+              {error && <p className="mt-3 text-sm font-semibold text-danger">{error.message}</p>}
+              {personas.error && <ErrorState error={personas.error} onRetry={personas.reload} />}
+              {!personas.data && !personas.error && <LoadingBlock rows={6} />}
+              <div className="mt-4 space-y-5">
+                {GROUPS.map((g) => {
+                  const people = (personas.data ?? []).filter((p) => g.roles.includes(p.role));
+                  if (!people.length) return null;
+                  return (
+                    <div key={g.title}>
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-muted">{g.title}</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {people.map((p) => (
+                          <button key={p.email} onClick={() => signIn(p.email)} disabled={!!busy} className="group rounded-lg border border-line bg-panel p-3 text-left hover:border-saffron hover:bg-saffron-soft/30">
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-semibold text-ink">{p.name}</span>
+                              {busy === p.email ? <Spinner /> : <ArrowRight className="h-4 w-4 text-ink-muted group-hover:text-saffron" />}
+                            </span>
+                            <span className="mt-0.5 block text-xs text-ink-muted">{p.designation}</span>
+                            <span className="mt-1 block text-[11px] font-semibold text-info">
+                              {humanize(p.role)} · {p.jurisdiction}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </section>
       </div>
     </div>
   );

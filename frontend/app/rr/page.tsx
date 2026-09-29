@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function RRPage() {
-  redirect('/rr/families');
+export default function Page() {
+  redirect('/rr/delivery');
 }
