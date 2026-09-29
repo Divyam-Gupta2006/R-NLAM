@@ -1,8 +1,7 @@
 'use client';
 
-import { WifiOff } from 'lucide-react';
 import React from 'react';
-import { Card, DataState, EmptyState, PageHeader } from '@/components/ui';
+import { Card, DataState, PageHeader } from '@/components/ui';
 import { useApi } from '@/lib/api/hooks';
 import type { Breakdown, Kpis } from '@/lib/api/types';
 import { BreakdownTable, KpiRow, StageFunnel } from './DashboardView';
@@ -50,15 +49,6 @@ export function AnalyticsPage() {
       <Card title="Districts">
         <DataState state={districts}>{(r) => <BreakdownTable rows={r} level="District" />}</DataState>
       </Card>
-    </div>
-  );
-}
-
-export function FieldSyncPage() {
-  return (
-    <div>
-      <PageHeader eyebrow="Field app" title="Offline sync" subtitle="Evidence captured offline is hashed on the device and synced when back online." />
-      <EmptyState icon={<WifiOff className="h-7 w-7" />} title="No offline evidence queued on this device" detail="Offline GNSS capture with on-device hashing is enabled in the field evidence module." />
     </div>
   );
 }

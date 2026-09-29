@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { api, tokenStore } from '@/lib/api/client';
+import { api, ApiError, tokenStore } from '@/lib/api/client';
 import { clearApiCache } from '@/lib/api/hooks';
 import type { Role, SessionUser } from '@/lib/api/types';
 
@@ -65,8 +65,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
     api
       .get<SessionUser>('/auth/me')
-      .then(setUser)
-      .catch(() => tokenStore.set(null))
+      .then((u) => {
+        setUser(u);
+        if (u.role === 'FIELD_OFFICER') tokenStore.cacheUser(u);
+      })
+      .catch((e: unknown) => {
+        // Offline (no response at all): a remembered field device carries on
+        // with the last user seen online. Only a real refusal ends the session.
+        const cached = tokenStore.cachedUser<SessionUser>();
+        if (e instanceof ApiError && e.status === 0 && cached) setUser(cached);
+        else tokenStore.set(null);
+      })
       .finally(() => setRestoring(false));
   }, []);
 
@@ -95,7 +104,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const accept = useCallback(
     (res: LoginResult, stay?: boolean) => {
-      tokenStore.set(res.token);
+      // Field officers work offline: remember the session on this device.
+      const remember = res.user.role === 'FIELD_OFFICER';
+      tokenStore.set(res.token, { remember });
+      tokenStore.cacheUser(remember ? res.user : null);
       clearApiCache();
       setUser(res.user);
       if (!stay) router.push(homeFor(res.user.role));

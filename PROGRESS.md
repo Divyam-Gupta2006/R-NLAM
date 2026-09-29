@@ -20,7 +20,8 @@ Living log of the SIH 2026 finalist build. Newest status first. Evidence for eve
 | 6.7 tamper-evident audit → Merkle | Done: RFC 6962 roots per IST day (238 seeded), chained roots, hourly sealer plus seal-now, `/audit/verify` recomputes chain and roots, `/audit/entries/:seq/proof`, in-browser proof verification (WebCrypto, cross-checked 162/162), `npm run demo:tamper` / `demo:restore` | `feature/6.7-merkle` |
 | 6.8 document & case AI | Done: field extraction (PDF text layer; Tesseract only if installed, else a clear 422) with confidence, evidence and `needs_review`; backend stores proposals, 503 if the AI service is down, audited confirm/correct/reject where flagged fields cannot be skipped; seeded award PDF reads back all 11 fields correctly. Legal Q&A over the Act text, schedules and rule packs, quoted with citations, refuses weak matches. **Accuracy: dev (tuned) top-1 10/12, top-3 12/12; hold-out (untuned) top-1 3/8, top-3 4/8; off-topic refused 4/4.** ai-service `pytest` 27 passed; backend `npm test` 170, `npm run test:e2e` 56 passed; frontend `tsc` clean. `next build` 124/124; UI compiled but not clicked through in a browser (memory rule) | `feature/6.8-document-ai` |
 | 6.9 candidate court-case links | Done: `EcourtsAdapter` interface + synthetic adapter (11 cases incl. deliberate near-misses); pure matcher (district gate; survey 0.45 / base 0.20; village ±0.20; party name via 6.5 × 0.35; candidate ≥ 0.50); 6 candidates seeded (5 true, 1 namesake trap), traps excluded; audited confirm/reject (reason required), idempotent re-sync keeps decisions; confirmed pending title suits and stay orders feed Why-Stuck with the CNR, s.64 references without a stay do not; case links in the digital thread; review page + parcel card. `npm test` 183, `npm run test:e2e` 61 passed; frontend `tsc` clean | `feature/6.9-court-links` |
-| 6.10 … 6.13 | Not started | — |
+| 6.10 field app: offline GNSS evidence (PWA) | Done: device seals each bundle (SHA-256 over canonical JSON, WebCrypto) incl. photo hashes and position source; IndexedDB queue; sync on reconnect / every minute / Background Sync where supported; clear sync states (waiting, uploading, accepted, conflict, refused, will retry). Server re-verifies seal + photos (422 + audit on mismatch), idempotent on clientId, PostGIS distance / IoU, CONFLICT instead of overwrite, Collector resolves. Manifest + icons + service worker (scope /field/). Remembered field sessions open offline. **Browser-checked** (production build): offline session restore, simulated boundary walk, seal, queue, failed upload kept with reason, 401 kept the evidence, re-login uploaded it and the server re-verified the seal; Collector conflict screen. **Not verified:** service-worker registration (the app's embedded browser refuses it; script served 200). Device/server seal parity unit-tested. `npm test` 201, `npm run test:e2e` 66 passed; `next build` 129/129 | `feature/6.10-field-pwa` |
+| 6.11 … 6.13 | Not started | — |
 
 ## ⚠ Read first: OneDrive
 
@@ -56,6 +57,7 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
 4. **Better legal retrieval (6.8).** Accuracy on unseen questions is modest (3/8 top-1).
    Sentence embeddings would help, but need a model download (~100–400 MB) and more RAM;
    say if you want it.
+6. **Service worker check in normal Chrome (6.10).** Build and run the frontend (`npm run build && npm start` in `frontend`), open `http://localhost:3000/field/assignments` in Chrome, and check DevTools → Application: the service worker `/field-sw.js` should be active for scope `/field/` and the app installable. In the Claude app's embedded browser, registration failed with "unknown error fetching the script" although the file is served correctly.
 5. **Browser walk-through of 6.8 and 6.9 screens.** They compile and their APIs are tested
    end to end, but I did not run backend + frontend together (one heavy process at a time).
 
@@ -200,6 +202,24 @@ because of file I/O on this folder. Recommended: in OneDrive settings, pause syn
 - **What counts as "stuck" from a court.** A pending title suit, or any case with a stay /
   status quo order. An s.64 reference to the Authority without a stay runs alongside
   payment and possession, so it is shown on the parcel but does not create a bottleneck.
+
+- **Field evidence is sealed on the device and re-checked on the server.** The server
+  never trusts the device's word: it recomputes the SHA-256 over the same canonical JSON
+  and every photo hash. The device code is imported by the backend tests to prove parity.
+- **Conflicts are kept, not merged or overwritten.** If another officer's survey reached
+  the server after this device last synced, the new one is stored as CONFLICT and the
+  Collector chooses; the loser is marked SUPERSEDED, never deleted.
+- **Simulated GNSS is labelled inside the seal.** For demos on a laptop, a "simulate a walk"
+  switch stands in for a receiver; `positionSource: SIMULATED` is part of the sealed bundle,
+  so it cannot be dropped later, and the UI tags it Synthetic. Seeded evidence is SIMULATED.
+- **Field sessions are remembered on the device** (localStorage) so the installed app opens
+  offline; other roles keep the per-tab session. Capture and sealing need no server; an
+  expired token only pauses sync (the queue is kept and the officer is asked to sign in).
+- **Two processes once, briefly.** To check the reconnect path in a browser I ran the
+  production frontend (`next start`, not the dev server) next to the backend for a few
+  minutes with 3.2 GB free, then stopped both. Found and fixed from that check: the
+  simulated walk drifted between corners (IoU 44%; now holds at each corner, 1.241 ha vs
+  1.243 ha recorded), a raw UTC time in the conflict message, and "Lar reference" labels.
 
 ## Log
 

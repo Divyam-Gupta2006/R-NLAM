@@ -30,22 +30,53 @@ export class ApiError extends Error {
   }
 }
 
+const USER_KEY = 'rnlam.session.user';
+
+/**
+ * The session token lives in this tab's sessionStorage. A field device
+ * (`remember`) also keeps it in localStorage so the installed field app opens
+ * offline; capture needs no server, and an expired token only stops sync.
+ */
 export const tokenStore = {
   get(): string | null {
     if (typeof window === 'undefined') return null;
     try {
-      return window.sessionStorage.getItem(TOKEN_KEY);
+      return window.sessionStorage.getItem(TOKEN_KEY) ?? window.localStorage.getItem(TOKEN_KEY);
     } catch {
       return null;
     }
   },
-  set(token: string | null) {
+  set(token: string | null, opts: { remember?: boolean } = {}) {
     if (typeof window === 'undefined') return;
     try {
-      if (token) window.sessionStorage.setItem(TOKEN_KEY, token);
-      else window.sessionStorage.removeItem(TOKEN_KEY);
+      if (token) {
+        window.sessionStorage.setItem(TOKEN_KEY, token);
+        if (opts.remember) window.localStorage.setItem(TOKEN_KEY, token);
+        else window.localStorage.removeItem(TOKEN_KEY);
+      } else {
+        window.sessionStorage.removeItem(TOKEN_KEY);
+        window.localStorage.removeItem(TOKEN_KEY);
+        window.localStorage.removeItem(USER_KEY);
+      }
     } catch {
       /* private mode: session lives in memory only */
+    }
+  },
+  /** The last user seen online, for restoring a remembered session offline. */
+  cachedUser<T>(): T | null {
+    try {
+      const raw = window.localStorage.getItem(USER_KEY);
+      return raw ? (JSON.parse(raw) as T) : null;
+    } catch {
+      return null;
+    }
+  },
+  cacheUser(user: unknown | null) {
+    try {
+      if (user) window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+      else window.localStorage.removeItem(USER_KEY);
+    } catch {
+      /* ignore */
     }
   },
 };

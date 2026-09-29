@@ -135,6 +135,7 @@ export const PORTALS: Portal[] = [
           { label: 'Documents', href: '/district/documents', icon: 'FileCheck' },
           { label: 'Ask the Act', href: '/district/ask-the-act', icon: 'BookOpenCheck' },
           { label: 'Field verification', href: '/district/field', icon: 'Smartphone' },
+          { label: 'Field evidence', href: '/district/field-evidence', icon: 'Satellite' },
         ],
       },
     ],
@@ -177,6 +178,7 @@ export const PORTALS: Portal[] = [
       {
         title: 'Field',
         items: [
+          { label: 'Capture evidence', href: '/field/capture', icon: 'Crosshair' },
           { label: 'Assignments', href: '/field/assignments', icon: 'Compass' },
           { label: 'Map', href: '/field/map', icon: 'Map' },
           { label: 'Sync', href: '/field/sync', icon: 'WifiOff' },
